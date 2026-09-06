@@ -82,14 +82,15 @@ def game_master_node(state: EngineState):
         ]
     )
     
+    # ИСПОЛЬЗУЕМ ЧИСТЫЙ КЛИЕНТ ДЛЯ КАРТИНОК
     image_url = None
     try:
         print(f"[DEBUG] Generating image with prompt: {response.image_prompt}")
         image_res = base_client.images.generate(
-            model="gpt-image-2",       # <--- МЕНЯЕМ НАЗВАНИЕ НА АКТУАЛЬНОЕ ИЗ ВАШЕГО СПИСКА
+            model="gpt-image-2",       
             prompt=response.image_prompt,
             size="1024x1024",
-            quality="standard",
+            quality="high",         # <--- ИЗМЕНИЛИ "standard" НА "high"
             n=1,
         )
         image_url = image_res.data[0].url
