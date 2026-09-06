@@ -38,6 +38,11 @@ async def play_turn(request: ActionRequest):
     try:
         # Extract the state and append the new user action
         game_state = request.current_state
+        
+        # Сохраняем язык и гендер перед вызовом LangGraph, чтобы они не стерлись
+        current_lang = game_state.get("language", "en")
+        current_gender = game_state.get("player_gender", "Unspecified")
+        
         action_text = f"\nUSER: {request.user_action}\n"
         
         # If narrative_history doesn't exist yet, initialize it
@@ -48,6 +53,11 @@ async def play_turn(request: ActionRequest):
 
         # Feed the state into your LangGraph engine
         new_state = narrative_engine.invoke(game_state)
+        
+        # Принудительно возвращаем язык и гендер в возвращаемый стейт
+        if isinstance(new_state, dict):
+            new_state["language"] = current_lang
+            new_state["player_gender"] = current_gender
         
         # Return the updated state to the frontend
         return {"status": "success", "new_state": new_state}
