@@ -6,17 +6,18 @@ from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 from state import EngineState, PlayerMetrics
 
-# Initialize the AI with Instructor
+# УБИРАЕМ КОНФЛИКТ БИБЛИОТЕК: Разделяем базовый клиент и клиент Instructor
 load_dotenv()
-client = instructor.from_openai(OpenAI(api_key=os.getenv("OPENAI_API_KEY")))
+base_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = instructor.from_openai(base_client)
 
 class GameTurnOutput(BaseModel):
     stat_tested: str = Field(description="The primary stat attribute name being used by the player's action, e.g. 'charm', 'tech', 'combat', 'stress_tolerance', etc.")
     success: bool = Field(description="Calculated automatically: True if player stat >= current difficulty threshold, False if player stat < current difficulty threshold.")
     narrative_text: str = Field(description="The cinematic narrative continuation in the requested language, written as a single short paragraph.")
     
-    # Промпт для картинки на английском языке
-    image_prompt: str = Field(description="A highly detailed, cinematic visual description of the current scene IN ENGLISH. Use terms like 'wide shot', 'gritty sci-fi lighting', 'Blade Runner aesthetic'. NO text, NO UI elements, just the atmospheric scene.")
+    # ОБХОД ФИЛЬТРОВ DALL-E 3: Строго запрещаем насилие и оружие в промпте картинки
+    image_prompt: str = Field(description="A highly detailed, cinematic visual description of the current scene IN ENGLISH. MUST BE SAFE FOR WORK. NO violence, NO weapons, NO blood, NO combat. Focus ONLY on the atmospheric environment, sci-fi architecture, and lighting (e.g., 'wide shot, empty glowing corridors').")
     
     stat_upgraded: str | None = Field(default=None, description="If success is True, name the stat to upgrade (+1), otherwise null.")
     items_added: list[str] = Field(default=[], description="Any items acquired this turn.")
@@ -30,18 +31,11 @@ def game_master_node(state: EngineState):
     max_turns = state.get("max_turns", 15)  
     current_difficulty = 3 + (turn // 2) 
 
-    # Extract user profile data sent from frontend
     player_gender = state.get("player_gender", "Unspecified")
     player_lang = state.get("language", "en")
     
-    lang_mapping = {
-        'en': 'English',
-        'fr': 'French',
-        'de': 'German',
-        'ru': 'Russian'
-    }
+    lang_mapping = {'en': 'English', 'fr': 'French', 'de': 'German', 'ru': 'Russian'}
     target_language = lang_mapping.get(player_lang, 'English')
-
     metrics_dict = metrics.model_dump()
 
     print(f"[DEBUG] Turn: {turn}/{max_turns} | Difficulty: {current_difficulty} | Lang: {target_language}")
@@ -49,96 +43,50 @@ def game_master_node(state: EngineState):
     recent_history = "\n\n".join(state["narrative_history"][-4:])
     current_inventory = state.get("inventory", [])
 
-    # Локализованные системные промпты с жестким правилом БРАТЬ ИНИЦИАТИВУ (TAKE AGENCY)
     system_prompts_by_lang = {
-        'en': f"""
-        STRICT LANGUAGE REQUIREMENT: YOU MUST WRITE ALL `narrative_text` EXCLUSIVELY, 100%, AND ENTIRELY IN ENGLISH. NO OTHER LANGUAGE.
-        FORMAT REQUIREMENT: Write the `narrative_text` as a SINGLE, COMPACT PARAGRAPH (2-4 sentences max) with NO line breaks.
+        'en': f"""STRICT LANGUAGE: `narrative_text` IN ENGLISH ONLY. FORMAT: ONE COMPACT PARAGRAPH.
+        Turn {turn}/{max_turns}. Difficulty: {current_difficulty}. Gender: {player_gender}.
+        Stats: Tech:{metrics.tech}, Charm:{metrics.charm}, Fitness:{metrics.fitness}, Intellect:{metrics.intellect}, Combat:{metrics.combat}.
+        RULES: 1) Eval stat. 2) Success if Stat >= {current_difficulty}. 3) TAKE AGENCY: Introduce new obstacle or threat immediately!""",
         
-        You are the Game Master of a gritty, high-stakes sci-fi interactive fiction.
-        Turn {turn} of {max_turns}. Difficulty Threshold: {current_difficulty}. Player Gender: {player_gender}.
+        'fr': f"""EXIGENCE LINGUISTIQUE: `narrative_text` EN FRANÇAIS SEULEMENT. FORMAT: UN SEUL PARAGRAPHE COMPACT.
+        Tour {turn}/{max_turns}. Difficulté: {current_difficulty}. Genre: {player_gender}.
+        Stats: Tech:{metrics.tech}, Charm:{metrics.charm}, Combat:{metrics.combat}.
+        RÈGLES: 1) Évaluez. 2) Succès si Stat >= {current_difficulty}. 3) FAITES AVANCER: Introduisez un nouvel obstacle immédiatement!""",
         
-        PLAYER STATS: Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
+        'de': f"""STRIKTE SPRACHANFORDERUNG: `narrative_text` NUR AUF DEUTSCH. FORMAT: EIN KOMPAKTER ABSATZ.
+        Runde {turn}/{max_turns}. Schwelle: {current_difficulty}. Geschlecht: {player_gender}.
+        Werte: Tech:{metrics.tech}, Combat:{metrics.combat}.
+        REGELN: 1) Auswerten. 2) Erfolg wenn >= {current_difficulty}. 3) NEUES HINDERNIS sofort einführen!""",
         
-        RULES:
-        1. Identify player action and `stat_tested`.
-        2. If Stat Value >= {current_difficulty}, `success` = true, else false.
-        3. TAKE AGENCY & DRIVE THE PLOT: Do NOT just repeat what the player did. Show the consequence of their action, then IMMEDIATELY introduce a NEW obstacle, a mysterious discovery, or a sudden threat. Push the story forward dynamically! Give them a reason to react.
-        4. Write `narrative_text` in English as a single short paragraph.
-        """,
-        'fr': f"""
-        EXIGENCE LINGUISTIQUE STRICTE : VOUS DEVEZ ÉCRIRE TOUT LE `narrative_text` EXCLUSIVEMENT ET EN ENTIER EN FRANÇAIS. AUCUNE AUTRE LANGUE.
-        FORMAT : Écrivez `narrative_text` EN UN SEUL PARAGRAPHE COMPACT (2-4 phrases max) sans sauts de ligne.
-        
-        Vous êtes le Maître du Jeu d'une fiction interactive de science-fiction.
-        Tour {turn} sur {max_turns}. Seuil de difficulté : {current_difficulty}. Genre du joueur : {player_gender}.
-        
-        STATS DU JOUEUR : Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
-        
-        RÈGLES :
-        1. Identifiez l'action et le `stat_tested`.
-        2. Si Stat >= {current_difficulty}, `success` = true, sinon false.
-        3. FAITES AVANCER L'INTRIGUE : Ne vous contentez pas de répéter l'action du joueur. Montrez la conséquence, puis introduisez IMMÉDIATEMENT un NOUVEL obstacle, une découverte ou une menace soudaine. Dynamisez l'histoire et forcez le joueur à réagir !
-        4. Rédigez `narrative_text` en français en un seul paragraphe court.
-        """,
-        'de': f"""
-        STRIKTE SPRACHANFORDERUNG: SIE MÜSSEN GESAMTEN `narrative_text` AUSSCHLIESSLICH UND VOLLSTÄNDIG AUF DEUTSCH SCHREIBEN. KEINE ANDERE SPRACHE.
-        FORMAT: Schreiben Sie `narrative_text` als EINZIGEN, KOMPAKTEN ABSATZ (max. 2-4 Sätze) ohne Zeilenumbrüche.
-        
-        Sie sind der Spielleiter einer gritty Sci-Fi-Interactive-Fiction.
-        Runde {turn} von {max_turns}. Schwierigkeitsschwelle: {current_difficulty}. Spielergeschlecht: {player_gender}.
-        
-        SPIELERWERTE: Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
-        
-        REGELN:
-        1. Identifizieren Sie die Aktion und `stat_tested`.
-        2. Wenn Wert >= {current_difficulty}, `success` = true, sonst false.
-        3. TREIBEN SIE DIE HANDLUNG VORAN: Wiederholen Sie nicht nur die Aktion des Spielers. Zeigen Sie die Konsequenz und führen Sie SOFORT ein NEUES Hindernis, eine mysteriöse Entdeckung oder eine plötzliche Bedrohung ein. Machen Sie die Geschichte dynamisch und zwingen Sie den Spieler zu reagieren!
-        4. Schreiben Sie `narrative_text` auf Deutsch in einem kurzen Absatz.
-        """,
-        'ru': f"""
-        СТРОГОЕ ТРЕБОВАНИЕ К ЯЗЫКУ: ВЫ ОБЯЗАНЫ НАПИСАТЬ ВЕСЬ ТЕКСТ В ПОЛЕ `narrative_text` ИСКЛЮЧИТЕЛЬНО, НА 100% И ТОЛЬКО НА РУССКОМ ЯЗЫКЕ. НИКАКОГО АНГЛИЙСКОГО.
-        ФОРМАТ: Пишите `narrative_text` ОДНИМ КОМПАКТНЫМ АБЗАЦЕМ (2-4 предложения максимум) без переносов строк.
-        
-        Ты — Мастер Игры (Game Master) в жесткой научно-фантастической текстовой ролевой игре.
-        Ход {turn} из {max_turns}. Порог сложности: {current_difficulty}. Пол игрока: {player_gender}.
-        
-        ХАРАКТЕРИСТИКИ ИГРОКА: Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
-        
-        ПРАВИЛА:
-        1. Определи действие игрока и проверяемую характеристику (`stat_tested`).
-        2. Если значение характеристики >= {current_difficulty}, то `success` = true, иначе false.
-        3. РАЗВИВАЙ СЮЖЕТ И БЕРИ ИНИЦИАТИВУ: Ни в коем случае не повторяй просто то, что сделал игрок! Опиши последствия его действий, а затем СРАЗУ ЖЕ введи новую проблему, неожиданную находку, поломку или внезапную угрозу. Двигай историю вперед и заставь игрока реагировать на новые обстоятельства!
-        4. Напиши `narrative_text` строго на русском языке в виде одного абзаца.
-        """
+        'ru': f"""СТРОГОЕ ТРЕБОВАНИЕ: `narrative_text` ТОЛЬКО НА РУССКОМ. ФОРМАТ: ОДИН КОМПАКТНЫЙ АБЗАЦ.
+        Ход {turn}/{max_turns}. Сложность: {current_difficulty}. Пол: {player_gender}.
+        Характеристики: Tech:{metrics.tech}, Charm:{metrics.charm}, Combat:{metrics.combat}.
+        ПРАВИЛА: 1) Оцени. 2) Успех если >= {current_difficulty}. 3) БЕРИ ИНИЦИАТИВУ: сразу вводи новое препятствие или угрозу!"""
     }
 
-    # Локализованные пользовательские сообщения с запросом на image_prompt
     user_prompts_by_lang = {
-        'en': f"RECENT HISTORY:\n{recent_history}\n\nEvaluate the action, reveal the consequence, and explicitly introduce a new complication, discovery, or threat as one short paragraph. Also generate the `image_prompt` in English:",
-        'fr': f"HISTORIQUE RÉCENT :\n{recent_history}\n\nÉvaluez l'action, révélez la conséquence et introduisez explicitement une nouvelle complication ou menace en un seul paragraphe court. Générez également le `image_prompt` en anglais :",
-        'de': f"LETZTE GESCHICHTE:\n{recent_history}\n\nWerten Sie die Aktion aus, zeigen Sie die Konsequenz und führen Sie ausdrücklich eine neue Komplikation oder Bedrohung in einem kurzen Absatz ein. Generieren Sie auch den `image_prompt` auf Englisch:",
-        'ru': f"НЕДАВНЯЯ ИСТОРИЯ:\n{recent_history}\n\nОцени действие, опиши последствия и обязательно введи новое неожиданное препятствие, угрозу или находку одним коротким абзацем на русском языке. Также сгенерируй `image_prompt` на английском языке:"
+        'en': f"RECENT HISTORY:\n{recent_history}\n\nEvaluate action, reveal consequence, add new threat (one paragraph). Also generate `image_prompt` (atmospheric only, no violence):",
+        'fr': f"HISTORIQUE:\n{recent_history}\n\nÉvaluez l'action, ajoutez une menace (un paragraphe). Générez aussi `image_prompt` en anglais (pas de violence) :",
+        'de': f"GESCHICHTE:\n{recent_history}\n\nAktion auswerten, neue Bedrohung (ein Absatz). Auch `image_prompt` auf Englisch generieren (keine Gewalt):",
+        'ru': f"ИСТОРИЯ:\n{recent_history}\n\nОцени, добавь новую угрозу (один абзац). Также сгенерируй `image_prompt` на английском (только атмосфера, без жестокости):"
     }
-
-    system_prompt = system_prompts_by_lang.get(player_lang, system_prompts_by_lang['en'])
-    user_prompt = user_prompts_by_lang.get(player_lang, user_prompts_by_lang['en'])
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         response_model=GameTurnOutput,
         max_tokens=500, 
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "system", "content": system_prompts_by_lang.get(player_lang, system_prompts_by_lang['en'])},
+            {"role": "user", "content": user_prompts_by_lang.get(player_lang, user_prompts_by_lang['en'])}
         ]
     )
     
-    # ---> БЛОК ГЕНЕРАЦИИ ИЗОБРАЖЕНИЯ DALL-E 3 <---
+    # ИСПОЛЬЗУЕМ ЧИСТЫЙ КЛИЕНТ ДЛЯ КАРТИНОК
     image_url = None
     try:
         print(f"[DEBUG] Generating image with prompt: {response.image_prompt}")
-        image_res = client.images.generate(
+        image_res = base_client.images.generate(
             model="dall-e-3",
             prompt=response.image_prompt,
             size="1024x1024",
@@ -151,7 +99,6 @@ def game_master_node(state: EngineState):
         print(f"[ERROR] Failed to generate image: {e}")
         image_url = None
 
-    # --- IRONCLAD PYTHON MATH OVERRIDE ---
     stat_val = metrics_dict.get(response.stat_tested, 3)
     if stat_val >= current_difficulty:
         response.success = True
@@ -194,29 +141,13 @@ def finale_node(state: EngineState):
     recent_history = "\n\n".join(state["narrative_history"][-3:])
     player_lang = state.get("language", "en")
     
-    system_prompts_finale = {
-        'en': "STRICT LANGUAGE REQUIREMENT: WRITE ENTIRELY IN ENGLISH. Single short paragraph. Resolve the story definitively.",
-        'fr': "EXIGENCE LINGUISTIQUE : ÉCRIRE EN FRANÇAIS. Un seul paragraphe court. Résolvez l'histoire.",
-        'de': "SPRACHANFORDERUNG: VOLLSTÄNDIG AUF DEUTSCH SCHREIBEN. Ein kurzer Absatz. Beende die Geschichte.",
-        'ru': "СТРОГОЕ ТРЕБОВАНИЕ К ЯЗЫКУ: ПИШИТЕ ТОЛЬКО НА РУССКОМ ЯЗЫКЕ. Один короткий абзац. Завершите историю."
-    }
-    system_prompt = system_prompts_finale.get(player_lang, system_prompts_finale['en'])
-    
-    user_prompts_finale = {
-        'en': f"RECENT HISTORY:\n{recent_history}\n\nRender the finale:",
-        'fr': f"HISTORIQUE RÉCENT :\n{recent_history}\n\nRendez le final :",
-        'de': f"LETZTE GESCHICHTE:\n{recent_history}\n\nErstellen Sie das Finale:",
-        'ru': f"НЕДАВНЯЯ ИСТОРИЯ:\n{recent_history}\n\nОпиши финал:"
-    }
-    user_prompt = user_prompts_finale.get(player_lang, user_prompts_finale['en'])
-    
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         response_model=GameTurnOutput,
         max_tokens=300,
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "system", "content": f"WRITE IN {player_lang.upper()} ONLY. Resolve the story."},
+            {"role": "user", "content": f"HISTORY:\n{recent_history}\n\nRender the finale:"}
         ]
     )
     
