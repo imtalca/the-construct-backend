@@ -22,7 +22,6 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # --- SECURITY NOTE: Replace "*" with your actual Netlify domain once live ---
-# e.g., allow_origins=["https://the-construct.netlify.app"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -31,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define strict input constraints (Max 500 characters to prevent token-stuffing attacks)
+# Define strict input constraints
 class ActionRequest(BaseModel):
     user_action: str = Field(..., max_length=500, description="Player action string.")
     current_state: dict[str, Any]
@@ -41,7 +40,7 @@ class LocationOutput(BaseModel):
     scenario_description: str = Field(description="An atmospheric starting scene description.")
 
 @app.post("/api/turn")
-@limiter.limit("15/minute")  # Limits each IP to 15 turns per minute
+@limiter.limit("15/minute")
 async def play_turn(request: Request, body: ActionRequest):
     try:
         game_state = body.current_state
@@ -60,6 +59,9 @@ async def play_turn(request: Request, body: ActionRequest):
         if isinstance(new_state, dict):
             new_state["language"] = current_lang
             new_state["player_gender"] = current_gender
+            
+        # ---> ДИАГНОСТИКА: ПРОВЕРЯЕМ, ДОШЛА ЛИ ССЫЛКА ДО API <---
+        print(f"[API DEBUG] IMAGE URL TO SEND: {new_state.get('latest_image_url')}")
         
         return {"status": "success", "new_state": new_state}
         
@@ -67,7 +69,7 @@ async def play_turn(request: Request, body: ActionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/generate-location")
-@limiter.limit("5/minute")  # Limits location rerolls to 5 per minute per IP
+@limiter.limit("5/minute")
 async def generate_location(request: Request, body: dict):
     try:
         state = body.get("current_state", {})
