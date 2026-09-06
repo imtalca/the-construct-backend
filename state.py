@@ -43,5 +43,4 @@ class EngineState(TypedDict):
     language: str
     player_gender: str
     
-    # ---> ДОБАВЬТЕ ЭТУ СТРОЧКУ, ЕСЛИ ЕЕ НЕТ <---
     latest_image_url: str | None
