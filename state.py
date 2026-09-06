@@ -1,4 +1,4 @@
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, Optional
 import operator
 
 class PlayerMetrics(TypedDict):
@@ -26,4 +26,4 @@ class EngineState(TypedDict):
     
     language: str
     player_gender: str
-    latest_image_url: str | None  # <--- КРИТИЧЕСКИ ВАЖНО ДЛЯ КАРТИНОК
+    latest_image_url: Optional[str]  # Безопасно для любой версии Python
