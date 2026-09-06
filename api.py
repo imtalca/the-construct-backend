@@ -67,9 +67,18 @@ async def generate_location(request: dict):
         target_language = lang_mapping.get(player_lang, 'English')
         
         system_prompt = f"""
-        You are the Game Master of a gritty, high-stakes cyberpunk interactive fiction.
+        You are the Game Master of a high-stakes science fiction interactive fiction.
         Generate a unique, unexpected, and immersive starting location and scenario where the player wakes up or begins. 
-        Avoid generic bio-labs unless twisted in a surreal way. Make it atmospheric and cinematic.
+        
+        DIVERSITY REQUIREMENT: Avoid cliché neon-drenched cyberpunk tropes. Do not default to glowing rain-slicked alleys or generic cyber-bars. Instead, draw from a wide variety of science fiction sub-genres:
+        - Hard sci-fi orbital platforms or zero-g research rings
+        - Overgrown biopunk arboretums or organic gene-lab pods
+        - Decaying multi-generational deep-space exploration vessels
+        - Brute-industrial asteroid mining cores or subterranean pressure-rigs
+        - Sterile, clinical corporate quarantine zones or deep-freeze cryo-vaults
+        - Desolate post-collapse terraforming domes under alien skies
+
+        Make it atmospheric, highly tactical, and cinematic.
         Player Gender: {player_gender}
         CRITICAL: Write both `location_name` and `scenario_description` strictly in **{target_language}**.
         """
@@ -79,7 +88,7 @@ async def generate_location(request: dict):
             response_model=LocationOutput,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Generate a random cyberpunk starting location in {target_language}."}
+                {"role": "user", "content": f"Generate a diverse, non-cyberpunk sci-fi starting location in {target_language}."}
             ]
         )
         return {
