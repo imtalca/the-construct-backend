@@ -138,7 +138,6 @@
             border-left: 3px solid var(--terminal-green);
         }
 
-        /* ---> NEW CSS FOR IMAGES <--- */
         .scene-image {
             max-width: 100%;
             border: 1px solid var(--dim-green);
@@ -255,7 +254,7 @@
             max_turns: 15,
             difficulty_threshold: 3,
             is_active: false,
-            latest_image_url: null // Added to track image
+            latest_image_url: null
         };
 
         const terminalWindow = document.getElementById("terminal-window");
@@ -749,7 +748,6 @@
 
                 gameState.narrative_history.push(`\nUSER: ${actionText}\n`);
                 
-                // Show a small loading indicator while waiting for the AI text AND the DALL-E image
                 const loadingIndicator = document.createElement("div");
                 loadingIndicator.className = "message system";
                 loadingIndicator.style.fontStyle = "italic";
@@ -767,32 +765,41 @@
                         })
                     });
 
-                    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+                    if (!response.ok) {
+                        let detail = "";
+                        try { detail = (await response.json()).detail || ""; } catch (_) {}
+                        throw new Error(`ENGINE ${response.status}${detail ? " :: " + detail : ""}`);
+                    }
 
                     const data = await response.json();
+                    if (!data || !data.new_state) throw new Error("ENGINE RETURNED NO STATE");
+
                     gameState = data.new_state;
-                    
-                    // Remove the loading indicator
-                    terminalWindow.removeChild(loadingIndicator);
+                    if (!gameState.metrics || typeof gameState.metrics !== "object") gameState.metrics = {};
+                    if (!Array.isArray(gameState.narrative_history)) gameState.narrative_history = [];
+
+                    if (loadingIndicator.parentNode) terminalWindow.removeChild(loadingIndicator);
 
                     turnIndicator.textContent = `${t.turnHeaderPrefix}: ${gameState.turn_count}/${gameState.max_turns}`;
                     updateHUD();
 
-                    // ---> NEW JAVASCRIPT: RENDER THE IMAGE IF IT EXISTS <---
+                    // render the scene image (http URL or base64 data: URI) if the engine sent one
                     if (gameState.latest_image_url) {
                         const img = document.createElement("img");
                         img.className = "scene-image";
-                        img.src = gameState.latest_image_url;
                         img.alt = "Generated scene visual";
+                        img.onload = () => scrollToBottom();
+                        img.onerror = () => img.remove();
+                        img.src = gameState.latest_image_url;
                         terminalWindow.appendChild(img);
                         scrollToBottom();
-                        
-                        // Scroll again once the image actually loads to keep the view at the bottom
-                        img.onload = () => scrollToBottom();
+
+                        // drop it before the next POST so we don't re-upload a big data URI
+                        gameState.latest_image_url = null;
                     }
 
-                    // Render the narrative text
-                    const latestText = gameState.narrative_history[gameState.narrative_history.length - 1]
+                    const hist = gameState.narrative_history;
+                    const latestText = String(hist[hist.length - 1] || "")
                         .replace("SYSTEM: ", "").replace("FINALE: ", "").trim();
 
                     const responseDiv = document.createElement("div");
@@ -810,8 +817,8 @@
 
                 } catch (error) {
                     console.error("Transmission error:", error);
-                    terminalWindow.removeChild(loadingIndicator);
-                    addMessage("ERR: LOST CONNECTION TO THE CONSTRUCT SERVER.", "system");
+                    if (loadingIndicator.parentNode) terminalWindow.removeChild(loadingIndicator);
+                    addMessage(`ERR: ${error.message || "LOST CONNECTION TO THE CONSTRUCT SERVER."}`, "system");
                     userInput.disabled = false;
                     userInput.focus();
                 }
