@@ -72,18 +72,18 @@ async def generate_location(request: dict):
         
         RADICAL DIVERSITY & SCI-FI PALETTE (PULL FROM COMPLETELY DIFFERENT DOMAINS EACH TIME):
         - A hollowed-out comet core filled with suspended data-ghosts and zero-g magnetic fluid
+        - Digital-industrial undertones, subtle reality-glitch anomalies, grid-locked data networks, and environments where physical space borders on terminal-driven architecture.
         - An atmospheric floating harvesting station suspended inside the crushing upper storms of a gas giant
         - A stellar-archive vault where memories and historical records are stored as pressurized optical gas columns
+        - Towering retro-futuristic corporate monoliths, industrial decay, neon-lit urban sprawl, rain-slicked or synthetic atmosphere, high-tech low-life tension, and heavy noir shadows.
         - A derelict automated terraforming foundry choked with glowing magnetic particulate clouds
         - A deep-core tectonic pressure-rig extracting heavy exotic isotopes directly from a molten mantle
         - A macro-engineering Dyson ring maintenance strut vibrating under raw solar plasma pressure
-        - **Cyberpunk & Blade Runner**: Towering retro-futuristic corporate monoliths, industrial decay, neon-lit urban sprawl, rain-slicked or synthetic atmosphere, high-tech low-life tension, and heavy noir shadows.
-        - **Detroit: Become Human**: Sleek yet socially tense municipal centers, cybernetic integration hubs, sterile corporate assembly lines, and sharp contrasts between high-end synthetic luxury and raw grit.
-        - **The Matrix**: Digital-industrial undertones, subtle reality-glitch anomalies, grid-locked data networks, and environments where physical space borders on terminal-driven architecture.
+        - Sleek yet socially tense municipal centers, cybernetic integration hubs, sterile corporate assembly lines, and sharp contrasts between high-end synthetic luxury and raw grit.
 
         ANTI-REPETITION & VARIETY RULES:
-        - Actively avoid repeating the same themes or locking onto repetitive motifs (like overused crystals or identical rooms). 
-        - Rotate dynamically between gritty urban underworlds, cybernetic transit terminals, abandoned corporate labs, high-altitude sprawl balconies, and terminal-linked server vaults.
+        - Actively avoid repeating the same themes or locking onto repetitive motifs. 
+        - Rotate dynamically between the palette
 
             Make it atmospheric, uncanny, and cinematic. Ensure every generated location feels distinct, fresh, and varied.
         Player Gender: {player_gender}
