@@ -83,6 +83,7 @@ def game_master_node(state: EngineState):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         response_model=GameTurnOutput,
+        max_tokens=300,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"RECENT HISTORY:\n{recent_history}\n\nEvaluate action and render the scene strictly in {target_language} as one short paragraph:"}
@@ -144,6 +145,7 @@ def finale_node(state: EngineState):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         response_model=GameTurnOutput,
+        max_tokens=300,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"RECENT HISTORY:\n{recent_history}\n\nRender the finale in {target_language}:"}
