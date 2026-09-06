@@ -29,7 +29,7 @@ class ActionRequest(BaseModel):
 
 # Schema for random location generation output
 class LocationOutput(BaseModel):
-    location_name: str = Field(description="A moody, unique cyberpunk starting location name.")
+    location_name: str = Field(description="A moody, unique science fiction starting location name.")
     scenario_description: str = Field(description="An atmospheric starting scene description where the player wakes up or begins, fitting the target language and player gender.")
 
 # Create the turn endpoint
@@ -67,25 +67,19 @@ async def generate_location(request: dict):
         target_language = lang_mapping.get(player_lang, 'English')
         
         system_prompt = f"""
-        You are the Game Master of a high-stakes, deeply imaginative science fiction interactive fiction.
-        Generate a radically unique, surprising, and immersive starting location and scenario where the player wakes up or begins. 
+        You are the Game Master of a high-stakes, wildly diverse science fiction interactive fiction.
+        Generate a completely unique, surprising, and immersive starting location and scenario where the player wakes up or begins. 
         
-        RADICAL DIVERSITY & SCI-FI PALETTE (PULL FROM COMPLETELY DIFFERENT DOMAINS EACH TIME):
-        - A hollowed-out comet core filled with suspended data-ghosts and zero-g magnetic fluid
-        - Digital-industrial undertones, subtle reality-glitch anomalies, grid-locked data networks, and environments where physical space borders on terminal-driven architecture.
-        - An atmospheric floating harvesting station suspended inside the crushing upper storms of a gas giant
-        - A stellar-archive vault where memories and historical records are stored as pressurized optical gas columns
-        - Towering retro-futuristic corporate monoliths, industrial decay, neon-lit urban sprawl, rain-slicked or synthetic atmosphere, high-tech low-life tension, and heavy noir shadows.
-        - A derelict automated terraforming foundry choked with glowing magnetic particulate clouds
-        - A deep-core tectonic pressure-rig extracting heavy exotic isotopes directly from a molten mantle
-        - A macro-engineering Dyson ring maintenance strut vibrating under raw solar plasma pressure
-        - Sleek yet socially tense municipal centers, cybernetic integration hubs, sterile corporate assembly lines, and sharp contrasts between high-end synthetic luxury and raw grit.
+        VARIETY & RANDOMIZATION RULE:
+        You have a massive universe of sci-fi aesthetics to pull from. DO NOT default to neon lights, rain-slicked urban alleys, or glowing cyber-streets every time. On this generation, randomly pick *just one* distinct style from this pool and commit to it fully:
+        1. Hard Sci-Fi / Deep Space: Orbital debris fields, zero-g hollowed-out comets, gas giant floating harvesting stations, silent cryo-vaults.
+        2. Industrial / Sub-Crustal: Mantle-drilling pressure rigs, deep-core tectonic foundries, massive Dyson ring maintenance struts vibrating under solar plasma.
+        3. Corporate / Synthetic Thriller (Detroit: Become Human style): Sterile municipal centers, cybernetic assembly lines, clinical corporate quarantine zones, high-end synthetic luxury.
+        4. Virtual / Glitch Architecture (The Matrix style): Grid-locked data networks, optical gas memory archives, reality-glitch terminal rooms.
+        5. Noir / Urban Underworld (Blade Runner style - use sparingly): Towering retro-futuristic corporate monoliths, heavy industrial decay, high-tech low-life tension.
 
-        ANTI-REPETITION & VARIETY RULES:
-        - Actively avoid repeating the same themes or locking onto repetitive motifs. 
-        - Rotate dynamically between the palette
+        ANTI-REPETITION: Actively avoid repeating previous themes. Surprise the player with unusual, tactile, and varied environments.
 
-            Make it atmospheric, uncanny, and cinematic. Ensure every generated location feels distinct, fresh, and varied.
         Player Gender: {player_gender}
         CRITICAL: Write both `location_name` and `scenario_description` strictly in **{target_language}**.
         """
@@ -95,7 +89,7 @@ async def generate_location(request: dict):
             response_model=LocationOutput,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Generate a unique, highly varied sci-fi starting location blending cyberpunk, Blade Runner, Detroit: Become Human, and Matrix aesthetics in {target_language}."}
+                {"role": "user", "content": f"Generate a completely randomized, non-repetitive sci-fi starting location in {target_language}."}
             ]
         )
         return {
