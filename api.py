@@ -1,5 +1,7 @@
+import os
+import secrets
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any
@@ -9,6 +11,18 @@ from slowapi.errors import RateLimitExceeded
 from engine import narrative_engine, client
 
 load_dotenv()
+
+ACCESS_KEY = os.getenv("ACCESS_KEY", "")
+if not ACCESS_KEY:
+    print("[WARN] ACCESS_KEY is not set - all protected requests will be rejected with 401.")
+
+
+def require_key(x_access_key: str = Header(default="")):
+    supplied = (x_access_key or "").encode("utf-8")
+    expected = ACCESS_KEY.encode("utf-8")
+    if not ACCESS_KEY or not secrets.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing access key")
+
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -33,7 +47,7 @@ class LocationOutput(BaseModel):
     location_name: str = Field(description="A moody, unique science fiction starting location name.")
     scenario_description: str = Field(description="An atmospheric starting scene description.")
 
-@app.post("/api/turn")
+@app.post("/api/turn", dependencies=[Depends(require_key)])
 @limiter.limit("15/minute")
 async def play_turn(request: Request, body: ActionRequest):
     try:
@@ -59,7 +73,7 @@ async def play_turn(request: Request, body: ActionRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/generate-location")
+@app.post("/api/generate-location", dependencies=[Depends(require_key)])
 @limiter.limit("5/minute")
 async def generate_location(request: Request, body: dict):
     try:

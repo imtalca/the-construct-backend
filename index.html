@@ -267,6 +267,28 @@
         const metricsContainer = document.getElementById("metrics-container");
         const hudInventory = document.getElementById("hud-inventory");
 
+        const API_BASE = "https://the-construct-api.onrender.com";
+
+        let ACCESS_KEY = "";
+        try { ACCESS_KEY = localStorage.getItem("construct_key") || ""; } catch (_) {}
+
+        function getKey() {
+            if (!ACCESS_KEY) {
+                ACCESS_KEY = (window.prompt("ACCESS KEY REQUIRED:") || "").trim();
+                try { if (ACCESS_KEY) localStorage.setItem("construct_key", ACCESS_KEY); } catch (_) {}
+            }
+            return ACCESS_KEY;
+        }
+
+        function clearKey() {
+            ACCESS_KEY = "";
+            try { localStorage.removeItem("construct_key"); } catch (_) {}
+        }
+
+        function apiHeaders() {
+            return { "Content-Type": "application/json", "X-Access-Key": getKey() };
+        }
+
         const translations = {
             en: {
                 boot: ["INITIALIZING NEURAL BASELINE...", "SYNCING CORTICAL METRICS...", "LOADING ENGINE..."],
@@ -550,13 +572,22 @@
             scrollToBottom();
 
             try {
-                const response = await fetch("https://the-construct-api.onrender.com/api/generate-location", {
+                const response = await fetch(`${API_BASE}/api/generate-location`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: apiHeaders(),
                     body: JSON.stringify({ current_state: gameState })
                 });
+
+                if (response.status === 401) {
+                    clearKey();
+                    terminalWindow.removeChild(loadingDiv);
+                    addMessage("ERR: ACCESS DENIED. Wrong key - reload the page to re-enter.", "system");
+                    userInput.disabled = false;
+                    return;
+                }
+
                 const data = await response.json();
-                
+
                 terminalWindow.removeChild(loadingDiv);
 
                 gameState.current_location = data.location_name;
@@ -756,14 +787,19 @@
                 scrollToBottom();
 
                 try {
-                    const response = await fetch("https://the-construct-api.onrender.com/api/turn", {
+                    const response = await fetch(`${API_BASE}/api/turn`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: apiHeaders(),
                         body: JSON.stringify({
                             user_action: actionText,
                             current_state: gameState
                         })
                     });
+
+                    if (response.status === 401) {
+                        clearKey();
+                        throw new Error("ACCESS DENIED - wrong key. Reload the page to re-enter.");
+                    }
 
                     if (!response.ok) {
                         let detail = "";
@@ -825,7 +861,10 @@
             }
         });
 
-        window.onload = runBootSequence;
+        window.onload = () => {
+            getKey();
+            runBootSequence();
+        };
     </script>
 </body>
 </html>
