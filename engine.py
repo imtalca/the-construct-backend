@@ -39,46 +39,73 @@ def game_master_node(state: EngineState):
     target_language = lang_mapping.get(player_lang, 'English')
 
     metrics_dict = metrics.model_dump()
-    sorted_metrics = sorted(metrics_dict.items(), key=lambda x: x[1])
-    weakest_stat = sorted_metrics[0][0]
-    strongest_stat = sorted_metrics[-1][0]
 
     print(f"[DEBUG] Turn: {turn}/{max_turns} | Difficulty: {current_difficulty} | Lang: {target_language}")
 
     recent_history = "\n\n".join(state["narrative_history"][-4:])
     current_inventory = state.get("inventory", [])
 
-    # Жесткие требования к языку и формату (один короткий абзац)
-    system_prompt = f"""
-    STRICT LANGUAGE REQUIREMENT: YOU MUST WRITE ALL `narrative_text` EXCLUSIVELY, 100%, AND ENTIRELY IN **{target_language.upper()}**. DO NOT USE ENGLISH OR ANY OTHER LANGUAGE UNDER ANY CIRCUMSTANCES.
+    # Локализованные системные промпты (решают проблему срыва на английский)
+    system_prompts_by_lang = {
+        'en': f"""
+        STRICT LANGUAGE REQUIREMENT: YOU MUST WRITE ALL `narrative_text` EXCLUSIVELY, 100%, AND ENTIRELY IN ENGLISH. NO OTHER LANGUAGE.
+        FORMAT REQUIREMENT: Write the `narrative_text` as a SINGLE, SHORT, COMPACT PARAGRAPH (1-3 sentences max) with NO line breaks. Max tokens limit applies.
+        
+        You are the Game Master of a gritty, high-stakes sci-fi interactive fiction.
+        Turn {turn} of {max_turns}. Difficulty Threshold: {current_difficulty}. Player Gender: {player_gender}.
+        
+        PLAYER STATS: Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
+        
+        RULES:
+        1. Identify player action and `stat_tested`.
+        2. If Stat Value >= {current_difficulty}, `success` = true, else false.
+        3. Write `narrative_text` in English as a single short paragraph.
+        """,
+        'fr': f"""
+        EXIGENCE LINGUISTIQUE STRICTE : VOUS DEVEZ ÉCRIRE TOUT LE `narrative_text` EXCLUSIVEMENT ET EN ENTIER EN FRANÇAIS. AUCUNE AUTRE LANGUE.
+        FORMAT : Écrivez `narrative_text` EN UN SEUL PARAGRAPHE COURT ET COMPACT (1-3 phrases max) sans sauts de ligne.
+        
+        Vous êtes le Maître du Jeu d'une fiction interactive de science-fiction.
+        Tour {turn} sur {max_turns}. Seuil de difficulté : {current_difficulty}. Genre du joueur : {player_gender}.
+        
+        STATS DU JOUEUR : Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
+        
+        RÈGLES :
+        1. Identifiez l'action et le `stat_tested`.
+        2. Si Stat >= {current_difficulty}, `success` = true, sinon false.
+        3. Rédigez `narrative_text` en français en un seul paragraphe court.
+        """,
+        'de': f"""
+        STRIKTE SPRACHANFORDERUNG: SIE MÜSSEN GESAMTEN `narrative_text` AUSSCHLIESSLICH UND VOLLSTÄNDIG AUF DEUTSCH SCHREIBEN. KEINE ANDERE SPRACHE.
+        FORMAT: Schreiben Sie `narrative_text` als EINZIGEN, KURZEN, KOMPAKTEN ABSATZ (max. 1-3 Sätze) ohne Zeilenumbrüche.
+        
+        Sie sind der Spielleiter einer gritty Sci-Fi-Interactive-Fiction.
+        Runde {turn} von {max_turns}. Schwierigkeitsschwelle: {current_difficulty}. Spielergeschlecht: {player_gender}.
+        
+        SPIELERWERTE: Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
+        
+        REGELN:
+        1. Identifizieren Sie die Aktion und `stat_tested`.
+        2. Wenn Wert >= {current_difficulty}, `success` = true, sonst false.
+        3. Schreiben Sie `narrative_text` auf Deutsch in einem kurzen Absatz.
+        """,
+        'ru': f"""
+        СТРОГОЕ ТРЕБОВАНИЕ К ЯЗЫКУ: ВЫ ОБЯЗАНЫ НАПИСАТЬ ВЕСЬ ТЕКСТ В ПОЛЕ `narrative_text` ИСКЛЮЧИТЕЛЬНО, НА 100% И ТОЛЬКО НА РУССКОМ ЯЗЫКЕ. НИКАКОГО АНГЛИЙСКОГО.
+        ФОРМАТ: Пишите `narrative_text` ОДНИМ КОРОТКИМ, КОМПАКТНЫМ АБЗАЦЕМ (1-3 предложения максимум) без переносов строк.
+        
+        Ты — Мастер Игры (Game Master) в жесткой научно-фантастической текстовой ролевой игре.
+        Ход {turn} из {max_turns}. Порог сложности: {current_difficulty}. Пол игрока: {player_gender}.
+        
+        ХАРАКТЕРИСТИКИ ИГРОКА: Tech: {metrics.tech}, Charm: {metrics.charm}, Fitness: {metrics.fitness}, Intellect: {metrics.intellect}, Combat: {metrics.combat}, Cautiousness: {metrics.cautiousness}, Wealth: {metrics.wealth}, Alignment: {metrics.alignment}, Language: {metrics.language}, Stress Tolerance: {metrics.stress_tolerance}, Presence: {metrics.presence}.
+        
+        ПРАВИЛА:
+        1. Определи действие игрока и проверяемую характеристику (`stat_tested`).
+        2. Если значение характеристики >= {current_difficulty}, то `success` = true, иначе false.
+        3. Напиши `narrative_text` строго на русском языке в виде одного короткого абзаца.
+        """
+    }
 
-    FORMAT REQUIREMENT: Write the `narrative_text` as a SINGLE, SHORT, COMPACT PARAGRAPH with NO line breaks or multiple paragraphs. Keep it concise, brief, and punchy (1-3 sentences max).
-
-    You are the Game Master of a gritty, high-stakes interactive fiction.
-    It is Turn {turn} of {max_turns}. Current Difficulty Threshold: {current_difficulty}.
-    Player Gender Classification: {player_gender}
-
-    PLAYER STATS:
-    - Tech: {metrics.tech}
-    - Charm: {metrics.charm}
-    - Fitness: {metrics.fitness}
-    - Intellect: {metrics.intellect}
-    - Combat: {metrics.combat}
-    - Cautiousness: {metrics.cautiousness}
-    - Wealth: {metrics.wealth}
-    - Alignment: {metrics.alignment}
-    - Language: {metrics.language}
-    - Stress Tolerance: {metrics.stress_tolerance}
-    - Presence: {metrics.presence}
-
-    RULES FOR EVALUATION:
-    1. Read the Recent History. Identify the player's attempted action and determine which stat they are using (`stat_tested`).
-    2. LOOK UP THE MATH: Find the value of `stat_tested` in the Player Stats above. 
-    3. STRICT THRESHOLD RULE: 
-       - If Stat Value >= {current_difficulty}, `success` MUST be `true`.
-       - If Stat Value < {current_difficulty}, `success` MUST be `false`.
-    4. Write the `narrative_text` strictly in **{target_language}** as a SINGLE paragraph to match that outcome.
-    """
+    system_prompt = system_prompts_by_lang.get(player_lang, system_prompts_by_lang['en'])
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -135,12 +162,13 @@ def finale_node(state: EngineState):
     lang_mapping = {'en': 'English', 'fr': 'French', 'de': 'German', 'ru': 'Russian'}
     target_language = lang_mapping.get(player_lang, 'English')
     
-    system_prompt = f"""
-    STRICT LANGUAGE REQUIREMENT: YOU MUST WRITE ALL `narrative_text` EXCLUSIVELY, 100%, AND ENTIRELY IN **{target_language.upper()}**.
-    FORMAT REQUIREMENT: Write as a SINGLE, SHORT PARAGRAPH.
-
-    You are the Game Master. The simulation is ending. Resolve the story definitively based on their journey.
-    """
+    system_prompts_finale = {
+        'en': "STRICT LANGUAGE REQUIREMENT: WRITE ENTIRELY IN ENGLISH. Single short paragraph. Resolve the story definitively.",
+        'fr': "EXIGENCE LINGUISTIQUE : ÉCRIRE EN FRANÇAIS. Un seul paragraphe court. Résolvez l'histoire.",
+        'de': "SPRACHANFORDERUNG: VOLLSTÄNDIG AUF DEUTSCH SCHREIBEN. Ein kurzer Absatz. Beende die Geschichte.",
+        'ru': "СТРОГОЕ ТРЕБОВАНИЕ К ЯЗЫКУ: ПИШИТЕ ТОЛЬКО НА РУССКОМ ЯЗЫКЕ. Один короткий абзац. Завершите историю."
+    }
+    system_prompt = system_prompts_finale.get(player_lang, system_prompts_finale['en'])
     
     response = client.chat.completions.create(
         model="gpt-4o-mini",
