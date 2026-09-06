@@ -40,6 +40,9 @@ class EngineState(TypedDict):
     # A flag to trigger a game-over or completion state
     is_active: bool    
     
-    # ---> НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ СОХРАНЕНИЯ НАСТРОЕК <---
+    # ---> ПЕРЕМЕННЫЕ ДЛЯ СОХРАНЕНИЯ НАСТРОЕК <---
     language: str
     player_gender: str
+    
+    # ---> НОВАЯ ПЕРЕМЕННАЯ ДЛЯ DALL-E 3 КАРТИНКИ <---
+    latest_image_url: str | None

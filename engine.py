@@ -14,6 +14,10 @@ class GameTurnOutput(BaseModel):
     stat_tested: str = Field(description="The primary stat attribute name being used by the player's action, e.g. 'charm', 'tech', 'combat', 'stress_tolerance', etc.")
     success: bool = Field(description="Calculated automatically: True if player stat >= current difficulty threshold, False if player stat < current difficulty threshold.")
     narrative_text: str = Field(description="The cinematic narrative continuation in the requested language, written as a single short paragraph.")
+    
+    # Промпт для картинки на английском языке
+    image_prompt: str = Field(description="A highly detailed, cinematic visual description of the current scene IN ENGLISH. Use terms like 'wide shot', 'gritty sci-fi lighting', 'Blade Runner aesthetic'. NO text, NO UI elements, just the atmospheric scene.")
+    
     stat_upgraded: str | None = Field(default=None, description="If success is True, name the stat to upgrade (+1), otherwise null.")
     items_added: list[str] = Field(default=[], description="Any items acquired this turn.")
     items_removed: list[str] = Field(default=[], description="Any items lost or used this turn.")
@@ -109,12 +113,12 @@ def game_master_node(state: EngineState):
         """
     }
 
-    # Локализованные пользовательские сообщения, требующие от ИИ добавить твист
+    # Локализованные пользовательские сообщения с запросом на image_prompt
     user_prompts_by_lang = {
-        'en': f"RECENT HISTORY:\n{recent_history}\n\nEvaluate the action, reveal the consequence, and explicitly introduce a new complication, discovery, or threat as one short paragraph:",
-        'fr': f"HISTORIQUE RÉCENT :\n{recent_history}\n\nÉvaluez l'action, révélez la conséquence et introduisez explicitement une nouvelle complication ou menace en un seul paragraphe court :",
-        'de': f"LETZTE GESCHICHTE:\n{recent_history}\n\nWerten Sie die Aktion aus, zeigen Sie die Konsequenz und führen Sie ausdrücklich eine neue Komplikation oder Bedrohung in einem kurzen Absatz ein:",
-        'ru': f"НЕДАВНЯЯ ИСТОРИЯ:\n{recent_history}\n\nОцени действие, опиши последствия и обязательно введи новое неожиданное препятствие, угрозу или находку одним коротким абзацем на русском языке:"
+        'en': f"RECENT HISTORY:\n{recent_history}\n\nEvaluate the action, reveal the consequence, and explicitly introduce a new complication, discovery, or threat as one short paragraph. Also generate the `image_prompt` in English:",
+        'fr': f"HISTORIQUE RÉCENT :\n{recent_history}\n\nÉvaluez l'action, révélez la conséquence et introduisez explicitement une nouvelle complication ou menace en un seul paragraphe court. Générez également le `image_prompt` en anglais :",
+        'de': f"LETZTE GESCHICHTE:\n{recent_history}\n\nWerten Sie die Aktion aus, zeigen Sie die Konsequenz und führen Sie ausdrücklich eine neue Komplikation oder Bedrohung in einem kurzen Absatz ein. Generieren Sie auch den `image_prompt` auf Englisch:",
+        'ru': f"НЕДАВНЯЯ ИСТОРИЯ:\n{recent_history}\n\nОцени действие, опиши последствия и обязательно введи новое неожиданное препятствие, угрозу или находку одним коротким абзацем на русском языке. Также сгенерируй `image_prompt` на английском языке:"
     }
 
     system_prompt = system_prompts_by_lang.get(player_lang, system_prompts_by_lang['en'])
@@ -123,13 +127,30 @@ def game_master_node(state: EngineState):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         response_model=GameTurnOutput,
-        max_tokens=300,
+        max_tokens=500, 
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
     )
     
+    # ---> БЛОК ГЕНЕРАЦИИ ИЗОБРАЖЕНИЯ DALL-E 3 <---
+    image_url = None
+    try:
+        print(f"[DEBUG] Generating image with prompt: {response.image_prompt}")
+        image_res = client.images.generate(
+            model="dall-e-3",
+            prompt=response.image_prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        image_url = image_res.data[0].url
+        print("[DEBUG] Image generated successfully.")
+    except Exception as e:
+        print(f"[ERROR] Failed to generate image: {e}")
+        image_url = None
+
     # --- IRONCLAD PYTHON MATH OVERRIDE ---
     stat_val = metrics_dict.get(response.stat_tested, 3)
     if stat_val >= current_difficulty:
@@ -163,7 +184,8 @@ def game_master_node(state: EngineState):
         "difficulty_threshold": current_difficulty,
         "max_turns": max_turns,
         "language": player_lang,
-        "player_gender": player_gender
+        "player_gender": player_gender,
+        "latest_image_url": image_url 
     }
 
 def finale_node(state: EngineState):
@@ -200,7 +222,8 @@ def finale_node(state: EngineState):
     
     return {
         "narrative_history": state["narrative_history"] + [f"\nFINALE: {response.narrative_text}\n"],
-        "is_active": False  
+        "is_active": False,
+        "latest_image_url": None
     }
 
 def router_node(state: EngineState):
