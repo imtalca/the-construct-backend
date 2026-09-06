@@ -38,4 +38,8 @@ class EngineState(TypedDict):
     latest_scene_text: str 
     
     # A flag to trigger a game-over or completion state
-    is_active: bool
+    is_active: bool    
+    
+    # ---> НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ СОХРАНЕНИЯ НАСТРОЕК <---
+    language: str
+    player_gender: str
