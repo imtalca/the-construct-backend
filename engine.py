@@ -82,16 +82,16 @@ def game_master_node(state: EngineState):
         ]
     )
     
-    # ИСПОЛЬЗУЕМ ЧИСТЫЙ КЛИЕНТ ДЛЯ КАРТИНОК
+     # ИСПОЛЬЗУЕМ ЧИСТЫЙ КЛИЕНТ ДЛЯ КАРТИНОК
     image_url = None
     try:
         print(f"[DEBUG] Generating image with prompt: {response.image_prompt}")
         image_res = base_client.images.generate(
-            model="dall-e-3",
+            model="dall-e-2",  # <-- МЕНЯЕМ НА DALL-E 2
             prompt=response.image_prompt,
-            size="1024x1024",
-            quality="standard",
+            size="512x512",    # <-- DALL-E 2 любит квадратный размер поменьше
             n=1,
+            # (quality="standard" нужно удалить, DALL-E 2 его не поддерживает)
         )
         image_url = image_res.data[0].url
         print("[DEBUG] Image generated successfully.")
