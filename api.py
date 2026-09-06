@@ -68,23 +68,24 @@ async def generate_location(request: dict):
         
         system_prompt = f"""
         You are the Game Master of a high-stakes, deeply imaginative science fiction interactive fiction.
-        Generate a bizarre, unique, unexpected, and immersive starting location and scenario where the player wakes up or begins. 
+        Generate a radically unique, surprising, and immersive starting location and scenario where the player wakes up or begins. 
         
-        STRICT PROHIBITIONS (DO NOT USE THESE UNDER ANY CIRCUMSTANCES):
-        - ABSOLUTELY NO glass domes, NO bio-domes, NO terrariums, NO lush greenery, NO botanical gardens, NO plants or vegetation.
-        - NO cliché neon cyberpunk rainy alleys or standard cyber-bars.
-        - NO generic spaceship metal corridors.
+        RADICAL DIVERSITY & SCI-FI PALETTE (PULL FROM COMPLETELY DIFFERENT DOMAINS EACH TIME):
+        - A hollowed-out comet core filled with suspended data-ghosts and zero-g magnetic fluid
+        - An atmospheric floating harvesting station suspended inside the crushing upper storms of a gas giant
+        - A stellar-archive vault where memories and historical records are stored as pressurized optical gas columns
+        - A derelict automated terraforming foundry choked with glowing magnetic particulate clouds
+        - A deep-core tectonic pressure-rig extracting heavy exotic isotopes directly from a molten mantle
+        - A macro-engineering Dyson ring maintenance strut vibrating under raw solar plasma pressure
+        - **Cyberpunk & Blade Runner**: Towering retro-futuristic corporate monoliths, industrial decay, neon-lit urban sprawl, rain-slicked or synthetic atmosphere, high-tech low-life tension, and heavy noir shadows.
+        - **Detroit: Become Human**: Sleek yet socially tense municipal centers, cybernetic integration hubs, sterile corporate assembly lines, and sharp contrasts between high-end synthetic luxury and raw grit.
+        - **The Matrix**: Digital-industrial undertones, subtle reality-glitch anomalies, grid-locked data networks, and environments where physical space borders on terminal-driven architecture.
 
-        CREATIVE PALETTE (USE STRANGE AND SURREAL SCI-FI CONCEPTS INSTEAD):
-        - Quantum computing cores floating inside liquid helium fields or absolute zero voids
-        - Massive Dyson-swarm maintenance struts vibrating with raw solar plasma
-        - Sound-resonant crystal caverns deep inside a crushing gas giant
-        - Non-Euclidean geometric labyrinths where walls shift and fold into abstract dimensions
-        - Synthetic bone-cathedrals or organic architecture drifting through dead stellar winds
-        - Sub-crustal mantle-drilling rigs powered by extreme gravitational pressure and magma-tethers
-        - Zero-gravity orbital debris graveyards welded together into makeshift art monuments
+        ANTI-REPETITION & VARIETY RULES:
+        - Actively avoid repeating the same themes or locking onto repetitive motifs (like overused crystals or identical rooms). 
+        - Rotate dynamically between gritty urban underworlds, cybernetic transit terminals, abandoned corporate labs, high-altitude sprawl balconies, and terminal-linked server vaults.
 
-        Make it atmospheric, uncanny, and cinematic.
+            Make it atmospheric, uncanny, and cinematic. Ensure every generated location feels distinct, fresh, and varied.
         Player Gender: {player_gender}
         CRITICAL: Write both `location_name` and `scenario_description` strictly in **{target_language}**.
         """
@@ -94,7 +95,7 @@ async def generate_location(request: dict):
             response_model=LocationOutput,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Generate a bizarre, non-plant, non-dome sci-fi starting location in {target_language}."}
+                {"role": "user", "content": f"Generate a unique, highly varied sci-fi starting location blending cyberpunk, Blade Runner, Detroit: Become Human, and Matrix aesthetics in {target_language}."}
             ]
         )
         return {
