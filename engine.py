@@ -48,12 +48,13 @@ def game_master_node(state: EngineState):
     recent_history = "\n\n".join(state["narrative_history"][-4:])
     current_inventory = state.get("inventory", [])
 
+    # ГЛАВНОЕ ПРАВИЛО ЯЗЫКА СТОИТ САМЫМ ПЕРВЫМ И НАПИСАНО СТРОГО
     system_prompt = f"""
+    STRICT LANGUAGE REQUIREMENT: YOU MUST WRITE ALL `narrative_text` EXCLUSIVELY, 100%, AND ENTIRELY IN **{target_language.upper()}**. DO NOT USE ENGLISH OR ANY OTHER LANGUAGE UNDER ANY CIRCUMSTANCES. EVERYTHING MUST BE IN {target_language}.
+
     You are the Game Master of a gritty, high-stakes interactive fiction.
     It is Turn {turn} of {max_turns}. Current Difficulty Threshold: {current_difficulty}.
     Player Gender Classification: {player_gender}
-    
-    CRITICAL RULE: You MUST write all `narrative_text` strictly in **{target_language}**.
 
     PLAYER STATS:
     - Tech: {metrics.tech}
@@ -74,7 +75,7 @@ def game_master_node(state: EngineState):
     3. STRICT THRESHOLD RULE: 
        - If Stat Value >= {current_difficulty}, `success` MUST be `true`.
        - If Stat Value < {current_difficulty}, `success` MUST be `false`.
-    4. Write the `narrative_text` in **{target_language}** to strictly match that outcome (`success = true` means they pull it off or gain ground; `success = false` means they fail or face a setback).
+    4. Write the `narrative_text` strictly in **{target_language}** to match that outcome (`success = true` means they pull it off or gain ground; `success = false` means they fail or face a setback).
     5. Keep responses under 3 paragraphs. Crisp, sharp, cinematic style.
     """
 
@@ -83,7 +84,7 @@ def game_master_node(state: EngineState):
         response_model=GameTurnOutput,
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"RECENT HISTORY:\n{recent_history}\n\nEvaluate action and render the scene in {target_language}:"}
+            {"role": "user", "content": f"RECENT HISTORY:\n{recent_history}\n\nEvaluate action and render the scene strictly in {target_language}:"}
         ]
     )
     
@@ -134,7 +135,11 @@ def finale_node(state: EngineState):
     lang_mapping = {'en': 'English', 'fr': 'French', 'de': 'German', 'ru': 'Russian'}
     target_language = lang_mapping.get(player_lang, 'English')
     
-    system_prompt = f"You are the Game Master. The simulation is ending. Resolve the story definitively based on their journey. Write the finale strictly in **{target_language}**."
+    system_prompt = f"""
+    STRICT LANGUAGE REQUIREMENT: YOU MUST WRITE ALL `narrative_text` EXCLUSIVELY, 100%, AND ENTIRELY IN **{target_language.upper()}**.
+
+    You are the Game Master. The simulation is ending. Resolve the story definitively based on their journey. Write the finale strictly in **{target_language}**.
+    """
     
     response = client.chat.completions.create(
         model="gpt-4o-mini",
