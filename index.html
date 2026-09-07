@@ -272,21 +272,30 @@
         let ACCESS_KEY = "";
         try { ACCESS_KEY = localStorage.getItem("construct_key") || ""; } catch (_) {}
 
-        function getKey() {
-            if (!ACCESS_KEY) {
-                ACCESS_KEY = (window.prompt("ACCESS KEY REQUIRED:") || "").trim();
-                try { if (ACCESS_KEY) localStorage.setItem("construct_key", ACCESS_KEY); } catch (_) {}
-            }
-            return ACCESS_KEY;
-        }
-
         function clearKey() {
             ACCESS_KEY = "";
             try { localStorage.removeItem("construct_key"); } catch (_) {}
         }
 
         function apiHeaders() {
-            return { "Content-Type": "application/json", "X-Access-Key": getKey() };
+            return { "Content-Type": "application/json", "X-Access-Key": ACCESS_KEY };
+        }
+
+        // Single gate at the entrance: ask once. A blank/cancelled answer locks the
+        // page (reload to retry). Nothing re-prompts later.
+        function unlockAndBoot() {
+            if (!ACCESS_KEY) {
+                ACCESS_KEY = (window.prompt("ACCESS KEY REQUIRED:") || "").trim();
+            }
+            if (!ACCESS_KEY) {
+                turnIndicator.textContent = "LOCKED";
+                userInput.disabled = true;
+                userInput.placeholder = "reload the page to enter a key";
+                addMessage("ERR: ACCESS KEY REQUIRED. Reload the page to enter one.", "system");
+                return;
+            }
+            try { localStorage.setItem("construct_key", ACCESS_KEY); } catch (_) {}
+            runBootSequence();
         }
 
         const translations = {
@@ -861,10 +870,7 @@
             }
         });
 
-        window.onload = () => {
-            getKey();
-            runBootSequence();
-        };
+        window.onload = unlockAndBoot;
     </script>
 </body>
 </html>
