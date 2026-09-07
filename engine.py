@@ -48,29 +48,29 @@ def game_master_node(state: EngineState):
         'en': f"""STRICT LANGUAGE: `narrative_text` IN ENGLISH ONLY. FORMAT: ONE COMPACT PARAGRAPH.
         Turn {turn}/{max_turns}. Difficulty: {current_difficulty}. Gender: {player_gender}.
         Stats: Tech:{m_tech}, Charm:{m_charm}, Fitness:{m_fitness}, Intellect:{m_intellect}, Combat:{m_combat}.
-        RULES: 1) Eval stat. 2) Success if Stat >= {current_difficulty}. 3) TAKE AGENCY: Introduce new obstacle or threat immediately!""",
+        RULES: 1) Eval stat. 2) Success if Stat >= {current_difficulty}. 3) TAKE AGENCY: Introduce new obstacle or reason to act sometimes!""",
         
         'fr': f"""EXIGENCE LINGUISTIQUE: `narrative_text` EN FRANÇAIS SEULEMENT. FORMAT: UN SEUL PARAGRAPHE COMPACT.
         Tour {turn}/{max_turns}. Difficulté: {current_difficulty}. Genre: {player_gender}.
         Stats: Tech:{m_tech}, Charm:{m_charm}, Combat:{m_combat}.
-        RÈGLES: 1) Évaluez. 2) Succès si Stat >= {current_difficulty}. 3) FAITES AVANCER: Introduisez un nouvel obstacle immédiatement!""",
+        RÈGLES: 1) Évaluez. 2) Succès si Stat >= {current_difficulty}. 3) FAITES AVANCER: Introduisez parfois un nouvel obstacle ou une raison pour une action!""",
         
         'de': f"""STRIKTE SPRACHANFORDERUNG: `narrative_text` NUR AUF DEUTSCH. FORMAT: EIN KOMPAKTER ABSATZ.
         Runde {turn}/{max_turns}. Schwelle: {current_difficulty}. Geschlecht: {player_gender}.
         Werte: Tech:{m_tech}, Combat:{m_combat}.
-        REGELN: 1) Auswerten. 2) Erfolg wenn >= {current_difficulty}. 3) NEUES HINDERNIS sofort einführen!""",
+        REGELN: 1) Auswerten. 2) Erfolg wenn >= {current_difficulty}. 3) NEUES HINDERNIS oder Grund für das Handeln manchmal einführen!""",
         
         'ru': f"""СТРОГОЕ ТРЕБОВАНИЕ: `narrative_text` ТОЛЬКО НА РУССКОМ. ФОРМАТ: ОДИН КОМПАКТНЫЙ АБЗАЦ.
         Ход {turn}/{max_turns}. Сложность: {current_difficulty}. Пол: {player_gender}.
         Характеристики: Tech:{m_tech}, Charm:{m_charm}, Combat:{m_combat}.
-        ПРАВИЛА: 1) Оцени. 2) Успех если >= {current_difficulty}. 3) БЕРИ ИНИЦИАТИВУ: сразу вводи новое препятствие или угрозу!"""
+        ПРАВИЛА: 1) Оцени. 2) Успех если >= {current_difficulty}. 3) БЕРИ ИНИЦИАТИВУ: периодически вводи новое препятствие или причину для действия!"""
     }
 
     user_prompts_by_lang = {
-        'en': f"RECENT HISTORY:\n{recent_history}\n\nEvaluate action, reveal consequence, add new threat (one paragraph). Also generate `image_prompt` (atmospheric only, no violence):",
-        'fr': f"HISTORIQUE:\n{recent_history}\n\nÉvaluez l'action, ajoutez une menace (un paragraphe). Générez aussi `image_prompt` en anglais (pas de violence) :",
-        'de': f"GESCHICHTE:\n{recent_history}\n\nAktion auswerten, neue Bedrohung (ein Absatz). Auch `image_prompt` auf Englisch generieren (keine Gewalt):",
-        'ru': f"ИСТОРИЯ:\n{recent_history}\n\nОцени, добавь новую угрозу (один абзац). Также сгенерируй `image_prompt` на английском (только атмосфера, без жестокости):"
+        'en': f"RECENT HISTORY:\n{recent_history}\n\nEvaluate action, reveal consequence, add new event (one paragraph). Also generate `image_prompt` (atmospheric only, no violence):",
+        'fr': f"HISTORIQUE:\n{recent_history}\n\nÉvaluez l'action, ajoutez un événement (un paragraphe). Générez aussi `image_prompt` en anglais (pas de violence) :",
+        'de': f"GESCHICHTE:\n{recent_history}\n\nAktion auswerten, neues Ereignis (ein Absatz). Auch `image_prompt` auf Englisch generieren (keine Gewalt):",
+        'ru': f"ИСТОРИЯ:\n{recent_history}\n\nОцени, добавь новое событие (один абзац). Также сгенерируй `image_prompt` на английском (только атмосфера, без жестокости):"
     }
 
     response = client.chat.completions.create(
