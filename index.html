@@ -201,6 +201,61 @@
                 width: 100%;
             }
         }
+
+        /* ---- Mystical finale mode: one window, no HUD ---- */
+        body.finale-mode {
+            background: radial-gradient(ellipse at 50% 40%, #100a1f 0%, #06040c 55%, #000 100%);
+        }
+        body.finale-mode .sidebar,
+        body.finale-mode .terminal-header,
+        body.finale-mode .input-form {
+            display: none;
+        }
+        body.finale-mode .layout-wrapper {
+            max-width: 760px;
+            height: 100vh;
+        }
+        body.finale-mode .terminal-container {
+            border: none;
+            box-shadow: none;
+            background: transparent;
+            justify-content: center;
+            align-items: center;
+            animation: finaleFade 1.6s ease both;
+        }
+        body.finale-mode .terminal-window {
+            overflow-y: auto;
+            gap: 34px;
+            align-items: center;
+            justify-content: center;
+        }
+        body.finale-mode .message {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 1.15rem;
+            line-height: 2;
+            letter-spacing: 0.4px;
+            text-align: center;
+            max-width: 40em;
+            color: #d9d2ef;
+            text-shadow: 0 0 16px rgba(150, 120, 220, 0.45);
+        }
+        body.finale-mode .final-line {
+            font-style: italic;
+            font-size: 1.4rem;
+            color: #ffffff;
+            text-shadow: 0 0 24px rgba(190, 160, 255, 0.75);
+        }
+        body.finale-mode .final-line.pulse {
+            animation: finalPulse 3.4s ease-in-out infinite;
+        }
+        @keyframes finaleFade {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @keyframes finalPulse {
+            0%, 100% { opacity: 0.8;  text-shadow: 0 0 18px rgba(180, 150, 255, 0.45); }
+            50%      { opacity: 1;    text-shadow: 0 0 34px rgba(205, 175, 255, 0.9); }
+        }
     </style>
 </head>
 <body>
@@ -248,8 +303,10 @@
                 intellect: 3, alignment: 3, combat: 3, cautiousness: 3
             },
             current_location: "OFFLINE",
+            current_scenario: "",
             inventory: [],
             narrative_history: [],
+            turn_log: [],
             turn_count: 1,
             max_turns: 15,
             difficulty_threshold: 3,
@@ -553,6 +610,54 @@
             });
         }
 
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        function typeInto(element, text, speed) {
+            return new Promise((resolve) => {
+                let i = 0;
+                (function step() {
+                    if (i < text.length) {
+                        element.textContent += text.charAt(i++);
+                        scrollToBottom();
+                        setTimeout(step, speed);
+                    } else {
+                        resolve();
+                    }
+                })();
+            });
+        }
+
+        const FINAL_LINE = "Only you hold the key to what lies beyond the Construct";
+
+        async function renderFinale(finaleText) {
+            document.body.classList.add("finale-mode");
+            userInput.disabled = true;
+            userInput.blur();
+            turnIndicator.textContent = "";
+            terminalWindow.innerHTML = "";
+
+            const body = document.createElement("div");
+            body.className = "message system";
+            terminalWindow.appendChild(body);
+            await typeInto(body, finaleText.trim(), 24);
+
+            await sleep(1400);
+
+            const line1 = document.createElement("div");
+            line1.className = "message final-line";
+            terminalWindow.appendChild(line1);
+            await typeInto(line1, FINAL_LINE, 46);
+
+            await sleep(5000);
+
+            terminalWindow.innerHTML = "";
+            const line2 = document.createElement("div");
+            line2.className = "message final-line";
+            terminalWindow.appendChild(line2);
+            await typeInto(line2, FINAL_LINE, 95);
+            line2.classList.add("pulse");
+        }
+
         function typeQuestion(text, callback) {
             userInput.disabled = true;
             const t = translations[gameState.language] || translations.en;
@@ -600,6 +705,7 @@
                 terminalWindow.removeChild(loadingDiv);
 
                 gameState.current_location = data.location_name;
+                gameState.current_scenario = data.scenario_description || "";
                 const fullText = `SYSTEM: [LOC: ${data.location_name}]\n${data.scenario_description}\n${t.rerollPrompt}`;
                 
                 const sceneDiv = document.createElement("div");
@@ -755,6 +861,9 @@
                 turnIndicator.textContent = `${t.turnHeaderPrefix}: ${gameState.turn_count}/${gameState.max_turns}`;
                 
                 const lockMsg = t.locationLockedMsg.replace("{loc}", gameState.current_location);
+                if (gameState.current_scenario) {
+                    gameState.narrative_history.push(`SYSTEM: [SCENE] ${gameState.current_scenario}`);
+                }
                 gameState.narrative_history.push(`SYSTEM: ${lockMsg} Initial action: ${inputVal}`);
                 updateHUD();
 
@@ -825,6 +934,16 @@
 
                     if (loadingIndicator.parentNode) terminalWindow.removeChild(loadingIndicator);
 
+                    const hist = gameState.narrative_history;
+                    const latestText = String(hist[hist.length - 1] || "")
+                        .replace("SYSTEM: ", "").replace("FINALE: ", "").trim();
+
+                    // Turn 15 resolves: hand off to the mystical single-window finale.
+                    if (!gameState.is_active) {
+                        renderFinale(latestText);
+                        return;
+                    }
+
                     turnIndicator.textContent = `${t.turnHeaderPrefix}: ${gameState.turn_count}/${gameState.max_turns}`;
                     updateHUD();
 
@@ -843,21 +962,13 @@
                         gameState.latest_image_url = null;
                     }
 
-                    const hist = gameState.narrative_history;
-                    const latestText = String(hist[hist.length - 1] || "")
-                        .replace("SYSTEM: ", "").replace("FINALE: ", "").trim();
-
                     const responseDiv = document.createElement("div");
                     responseDiv.className = "message system";
                     terminalWindow.appendChild(responseDiv);
 
                     typeWriterEffect(latestText, responseDiv, () => {
-                        if (gameState.is_active) {
-                            userInput.disabled = false;
-                            userInput.focus();
-                        } else {
-                            userInput.placeholder = "SIMULATION CONCLUDED.";
-                        }
+                        userInput.disabled = false;
+                        userInput.focus();
                     });
 
                 } catch (error) {

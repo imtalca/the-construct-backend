@@ -61,8 +61,8 @@ async def play_turn(request: Request, body: ActionRequest):
         current_lang = game_state.get("language", "en")
         current_gender = game_state.get("player_gender", "Unspecified")
 
-        if "narrative_history" not in game_state:
-            game_state["narrative_history"] = []
+        game_state.setdefault("narrative_history", [])
+        game_state.setdefault("turn_log", [])
         game_state["narrative_history"].append(f"\nUSER: {body.user_action}\n")
 
         new_state = narrative_engine.invoke(game_state)

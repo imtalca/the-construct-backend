@@ -20,8 +20,10 @@ class EngineState(TypedDict):
     max_turns: int
     difficulty_threshold: int
     narrative_history: Annotated[list[str], operator.add]
+    turn_log: Annotated[list[dict], operator.add]   # one {stat, success, probed} per turn, for the finale
     latest_scene_text: str
     is_active: bool
     language: str
     player_gender: str
+    current_scenario: str                           # the full opening scene text, kept for the finale
     latest_image_url: Optional[str]
