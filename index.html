@@ -352,6 +352,8 @@
                 return;
             }
             try { localStorage.setItem("construct_key", ACCESS_KEY); } catch (_) {}
+            // wake the free-tier server now, while the player spends ~1 min on setup
+            try { fetch(`${API_BASE}/`, { method: "GET", cache: "no-store" }).catch(() => {}); } catch (_) {}
             runBootSequence();
         }
 
@@ -674,40 +676,51 @@
             });
         }
 
-        async function fetchRandomLocation() {
+        async function fetchRandomLocation(attempt = 1) {
             userInput.disabled = true;
             const t = translations[gameState.language];
             turnIndicator.textContent = t.locGenHeader;
-            
-            const loadingDiv = document.createElement("div");
-            loadingDiv.className = "message system";
-            loadingDiv.textContent = "...";
-            terminalWindow.appendChild(loadingDiv);
+
+            let loadingDiv = terminalWindow.querySelector(".loc-loading");
+            if (!loadingDiv) {
+                loadingDiv = document.createElement("div");
+                loadingDiv.className = "message system loc-loading";
+                loadingDiv.style.fontStyle = "italic";
+                terminalWindow.appendChild(loadingDiv);
+            }
+            loadingDiv.textContent = attempt === 1
+                ? "> GENERATING LOCATION... (server may be waking up, up to ~50s)"
+                : `> STILL TRYING... (attempt ${attempt}/3)`;
             scrollToBottom();
 
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 45000);
             try {
                 const response = await fetch(`${API_BASE}/api/generate-location`, {
                     method: "POST",
                     headers: apiHeaders(),
-                    body: JSON.stringify({ current_state: gameState })
+                    body: JSON.stringify({ current_state: gameState }),
+                    signal: ctrl.signal
                 });
+                clearTimeout(timer);
 
                 if (response.status === 401) {
                     clearKey();
-                    terminalWindow.removeChild(loadingDiv);
+                    loadingDiv.remove();
                     addMessage("ERR: ACCESS DENIED. Wrong key - reload the page to re-enter.", "system");
                     userInput.disabled = false;
                     return;
                 }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const data = await response.json();
+                if (!data || !data.location_name) throw new Error("empty location payload");
 
-                terminalWindow.removeChild(loadingDiv);
-
+                loadingDiv.remove();
                 gameState.current_location = data.location_name;
                 gameState.current_scenario = data.scenario_description || "";
                 const fullText = `SYSTEM: [LOC: ${data.location_name}]\n${data.scenario_description}\n${t.rerollPrompt}`;
-                
+
                 const sceneDiv = document.createElement("div");
                 sceneDiv.className = "message system";
                 terminalWindow.appendChild(sceneDiv);
@@ -719,10 +732,16 @@
                     updateHUD();
                 });
             } catch (err) {
-                console.error(err);
-                terminalWindow.removeChild(loadingDiv);
-                addMessage("ERR: Failed to generate location.", "system");
+                clearTimeout(timer);
+                console.error("location gen failed:", err);
+                if (attempt < 3) {
+                    await new Promise(r => setTimeout(r, 1500));
+                    return fetchRandomLocation(attempt + 1);
+                }
+                loadingDiv.textContent = "ERR: Could not reach THE CONSTRUCT. Type 'reroll' to try again.";
+                userInput.placeholder = "type 'reroll'";
                 userInput.disabled = false;
+                userInput.focus();
             }
         }
 
@@ -850,6 +869,14 @@
 
             if (gamePhase === "location_select") {
                 if (inputVal.toLowerCase() === "reroll" || inputVal.toLowerCase() === "autre" || inputVal.toLowerCase() === "neu" || inputVal.toLowerCase() === "другой") {
+                    userInput.value = "";
+                    terminalWindow.innerHTML = "";
+                    fetchRandomLocation();
+                    return;
+                }
+
+                // no location loaded (generation failed / still pending) - regenerate, don't start
+                if (!gameState.current_location || gameState.current_location === "OFFLINE") {
                     userInput.value = "";
                     terminalWindow.innerHTML = "";
                     fetchRandomLocation();

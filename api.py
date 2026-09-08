@@ -32,14 +32,13 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # One comma-separated string. Override with the ALLOWED_ORIGINS env var to add
 # preview URLs. Local dev needs a static server (Live Server etc.), not file://.
-ALLOWED_ORIGINS = [
-    o.strip()
-    for o in os.getenv(
-        "ALLOWED_ORIGINS",
-        "https://construct.talcamusic.com,http://localhost:5500,http://127.0.0.1:5500", "file:///C:/Users/Admin/Desktop/the-construct/index.html",
-    ).split(",")
-    if o.strip()
-]
+_DEFAULT_ORIGINS = ",".join([
+    "https://construct.talcamusic.com",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "null",  # an index.html opened as a file:// sends Origin: null (local testing only)
+])
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,

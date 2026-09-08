@@ -8,7 +8,7 @@ from langgraph.graph import StateGraph, END
 from state import EngineState
 
 load_dotenv()
-base_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+base_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=45.0, max_retries=2)
 client = instructor.from_openai(base_client)
 
 class GameTurnOutput(BaseModel):
