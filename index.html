@@ -298,20 +298,63 @@
             image-rendering: pixelated;
         }
 
-        /* the screen tears itself apart, then cuts to black */
-        body.glitch-out {
-            animation: glitchOut 0.95s steps(2, end) forwards;
+        /* ---- analog TV losing signal: snow, rolling bar, tearing, CRT collapse ---- */
+        body.glitch-out .layout-wrapper {
+            transform-origin: center center;
+            animation: tvTear 0.6s linear 2, tvCollapse 0.55s ease-in 1.2s forwards;
         }
-        @keyframes glitchOut {
-            0%   { filter: none; transform: none; }
-            8%   { filter: invert(1) saturate(5); transform: translate(-7px, 3px) skewX(-14deg); }
-            17%  { filter: none; transform: translate(9px, -5px); }
-            26%  { filter: contrast(4) brightness(1.9) hue-rotate(120deg); transform: translate(-12px, 7px) scaleY(1.06); }
-            38%  { filter: invert(1); transform: translate(14px, -3px) skewX(24deg); }
-            50%  { filter: none; transform: translate(-5px, -9px); }
-            63%  { filter: brightness(0.12) blur(1.5px); transform: translate(4px, 4px); }
-            79%  { filter: invert(1) brightness(2.4); transform: translate(-16px, 0) scaleX(1.1); }
-            100% { filter: brightness(0); transform: none; }
+        @keyframes tvTear {
+            0%   { transform: translateX(0) skewX(0) scaleY(1); filter: none; }
+            9%   { transform: translateX(-18px) skewX(-3deg); filter: saturate(2.6) contrast(1.5); }
+            15%  { transform: translateX(13px); filter: none; }
+            27%  { transform: translateX(-6px) skewX(2deg) scaleY(1.03); filter: brightness(1.4) hue-rotate(20deg); }
+            38%  { transform: translateX(22px); filter: none; }
+            52%  { transform: translateX(-26px) scaleY(0.97); filter: contrast(2.2) brightness(0.55); }
+            64%  { transform: translateX(7px); filter: saturate(0) brightness(1.6); }
+            77%  { transform: translateX(-13px) skewX(-2deg); filter: none; }
+            89%  { transform: translateX(10px); filter: brightness(1.25); }
+            100% { transform: translateX(0); filter: none; }
+        }
+        @keyframes tvCollapse {
+            0%   { transform: scaleY(1)     scaleX(1);    filter: brightness(1); }
+            42%  { transform: scaleY(0.03)  scaleX(1);    filter: brightness(4); }
+            70%  { transform: scaleY(0.008) scaleX(1);    filter: brightness(8); }
+            86%  { transform: scaleY(0.008) scaleX(0.22); filter: brightness(10); }
+            100% { transform: scaleY(0.008) scaleX(0);    filter: brightness(0); }
+        }
+        #tv-static {
+            position: fixed; inset: 0; z-index: 99990; pointer-events: none;
+            mix-blend-mode: screen;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 170px 170px;
+            animation: tvSnow 0.08s steps(1, end) infinite, tvFade 1.9s ease-in forwards;
+        }
+        #tv-lines {
+            position: fixed; inset: 0; z-index: 99991; pointer-events: none;
+            background:
+                linear-gradient(rgba(255,255,255,0.13), rgba(255,255,255,0.03) 10%, transparent 20%),
+                repeating-linear-gradient(rgba(0,0,0,0.45) 0 2px, transparent 2px 4px);
+            background-size: 100% 100%, 100% 4px;
+            background-repeat: no-repeat, repeat;
+            animation: tvRoll 0.38s linear infinite, tvFade 2s ease-in forwards;
+        }
+        @keyframes tvSnow {
+            0%   { background-position: 0 0; }
+            20%  { background-position: -70px 50px; }
+            40%  { background-position: 55px -60px; }
+            60%  { background-position: -30px -25px; }
+            80%  { background-position: 80px 35px; }
+            100% { background-position: -50px 15px; }
+        }
+        @keyframes tvRoll {
+            from { background-position: 0 -40%, 0 0; }
+            to   { background-position: 0 140%, 0 36px; }
+        }
+        @keyframes tvFade {
+            0%  { opacity: 0; }
+            6%  { opacity: 0.95; }
+            65% { opacity: 0.7; }
+            100%{ opacity: 0; }
         }
         @keyframes finaleFade {
             from { opacity: 0; }
@@ -1073,11 +1116,16 @@
                     await typeInto(m, t.finaleStay, 46);
 
                     await delay(5000);
+                    const stat = document.createElement("div"); stat.id = "tv-static";
+                    const lines = document.createElement("div"); lines.id = "tv-lines";
+                    document.body.append(stat, lines);
                     document.body.classList.add("glitch-out");
-                    await delay(950);
+                    await delay(2000);
                     const black = document.createElement("div");
                     black.style.cssText = "position:fixed;inset:0;background:#000;z-index:99999;";
                     document.body.appendChild(black);
+                    stat.remove();
+                    lines.remove();
                 }
                 return;
             }
