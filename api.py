@@ -33,7 +33,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Comma-separated list; override on the server to add previews / local dev origins.
 ALLOWED_ORIGINS = [
     o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", "https://construct.talcamusic.com").split(",")
+    for o in os.getenv("ALLOWED_ORIGINS", "https://construct.talcamusic.com", "file:///C:/Users/Admin/Desktop/the-construct/index.html)").split(",")
     if o.strip()
 ]
 
@@ -55,7 +55,7 @@ class LocationOutput(BaseModel):
 
 @app.post("/api/turn", dependencies=[Depends(require_key)])
 @limiter.limit("15/minute")
-async def play_turn(request: Request, body: ActionRequest):
+def play_turn(request: Request, body: ActionRequest):  # sync -> runs in a worker thread, never blocks the event loop
     try:
         game_state = body.current_state
         current_lang = game_state.get("language", "en")
@@ -81,7 +81,7 @@ async def play_turn(request: Request, body: ActionRequest):
 
 @app.post("/api/generate-location", dependencies=[Depends(require_key)])
 @limiter.limit("5/minute")
-async def generate_location(request: Request, body: dict):
+def generate_location(request: Request, body: dict):  # sync -> worker thread
     try:
         state = body.get("current_state", {})
         player_gender = state.get("player_gender", "Unspecified")
