@@ -15,6 +15,12 @@
 
         body {
             background-color: var(--bg-color);
+            /* faint CRT: green/red scanlines + edge vignette. Swap for url('assets/bg-game.png') to use a real image. */
+            background-image:
+                repeating-linear-gradient(0deg, rgba(0, 255, 65, 0.04) 0 1px, transparent 1px 3px),
+                repeating-linear-gradient(90deg, rgba(255, 40, 40, 0.018) 0 1px, transparent 1px 5px),
+                radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, 0.6) 100%);
+            background-attachment: fixed;
             color: var(--terminal-green);
             font-family: 'Courier New', Courier, monospace;
             margin: 0;
@@ -204,7 +210,14 @@
 
         /* ---- Finale mode: bare black screen, white Courier, terminal feel ---- */
         body.finale-mode {
-            background: #000;
+            background-color: #000;
+            /* slow-drifting pixel field - "the scene was never solid". Swap for url('assets/bg-finale.png'). */
+            background-image:
+                radial-gradient(rgba(255, 255, 255, 0.05) 0.5px, transparent 0.6px),
+                radial-gradient(rgba(120, 180, 255, 0.045) 0.5px, transparent 0.6px);
+            background-size: 3px 3px, 5px 5px;
+            background-position: 0 0, 1px 2px;
+            animation: finaleDrift 26s linear infinite;
         }
         body.finale-mode .sidebar,
         body.finale-mode .terminal-header,
@@ -290,14 +303,8 @@
             content: "_";
             animation: caretBlink 1.1s step-end infinite;
         }
-        /* faint CRT scanlines - subtle; delete this rule to remove */
-        body.finale-mode::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 30;
-            background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.022) 0 1px, transparent 1px 3px);
+        @keyframes finaleDrift {
+            to { background-position: 30px 24px, 41px 12px; }
         }
         @keyframes finaleFade {
             from { opacity: 0; }
@@ -343,6 +350,9 @@
     </div>
 
     <script>
+        // >>> SET BACK TO false BEFORE DEPLOY <<<  true = skip AI image generation (faster testing)
+        const SKIP_IMAGES = true;
+
         let gameState = {
             player_name: "Subject 01",
             player_gender: "Unspecified",
@@ -361,6 +371,7 @@
             max_turns: 10,
             difficulty_threshold: 3,
             is_active: false,
+            skip_image: SKIP_IMAGES,
             latest_image_url: null
         };
 
@@ -749,7 +760,7 @@
         const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&*+=-<>/\\|{}";
 
         // Word-by-word "decrypt" reveal: each word flickers as glyphs then resolves.
-        function typeDecodeWords(element, text, wordMs = 42, scrambleMs = 90) {
+        function typeDecodeWords(element, text, wordMs = 48, scrambleMs = 165) {
             const tokens = text.split(/(\s+)/);
             return new Promise((resolve) => {
                 let idx = 0, settled = "";
@@ -862,7 +873,7 @@
             body.className = "message system";
             terminalWindow.appendChild(body);
             await typeDecodeWords(body, finaleText.trim());
-            await delay(500);
+            await delay(1100);
 
             await renderReadout(t);
             await delay(450);

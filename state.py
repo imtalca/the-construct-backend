@@ -26,4 +26,5 @@ class EngineState(TypedDict):
     language: str
     player_gender: str
     current_scenario: str                           # the full opening scene text, kept for the finale
+    skip_image: bool                                 # per-request: frontend can ask to skip image gen (local testing)
     latest_image_url: Optional[str]

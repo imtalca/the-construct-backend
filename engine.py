@@ -44,6 +44,7 @@ class GameTurnOutput(BaseModel):
     probed_the_frame: bool = Field(default=False, description="Decide this FIRST, judging ONLY the player's latest action. True if the action is an attempt to get out - leave / escape / exit / flee / climb out of this place or situation - OR to wake up, break the dream, or deny that any of this is real, OR to address the system / simulation / 'the construct' itself. TRUE examples: 'I run for the exit', 'I try to wake up', 'I look for the edge of the world', 'is this even real?', 'I climb out the window', 'I try to leave the ship'. FALSE examples: 'I talk to her', 'I search the desk', 'I fight the creature', 'I walk deeper inside', 'I pick up the key'.")
     item_used: str | None = Field(default=None, description="If the player's action deliberately USES an item they are already carrying (see the CARRYING list in the prompt), copy that item's name here EXACTLY as written in that list. Otherwise null. Using a fitting carried item makes the action much more likely to succeed.")
     item_consumed: bool = Field(default=False, description="Set true if `item_used` leaves the player's possession this turn - eaten, spent, destroyed, used up, thrown, dropped, or given away. Set false if they still have it after (keys, tools, weapons and devices kept in hand).")
+    item_dropped: str | None = Field(default=None, description="If the player's action DROPS, discards, gives away, hands over, throws away, loses, or leaves behind a carried item this turn, copy that item's name here EXACTLY as it appears in the CARRYING list. Otherwise null. Examples: 'I give the guard the keycard' -> 'keycard'; 'I drop the rusted neural-key into the grate' -> 'rusted neural-key'.")
     picked_up: str | None = Field(default=None, description="If, this turn, the player picks up / takes / finds / is handed a NEW item, put its SHORT name (1-4 words) here. Otherwise null. Examples: 'I grab the shard from the floor' -> 'glowing shard'; 'the guard hands you a keycard' -> 'keycard'.")
     stat_tested: str = Field(description="The primary stat attribute name being used by the player's action, e.g. 'charm', 'tech', 'combat', 'stress_tolerance', etc.")
     success: bool = Field(description="Calculated automatically: True if player stat >= current difficulty threshold, False if player stat < current difficulty threshold.")
@@ -106,10 +107,10 @@ def game_master_node(state: EngineState):
     }
 
     user_prompts_by_lang = {
-        'en': f"RECENT HISTORY:\n{recent_history}\n\nCARRYING: {inv_str}\n\nEvaluate action, reveal consequence, add new event (one paragraph). Also generate `image_prompt` (atmospheric only, no violence):",
-        'fr': f"HISTORIQUE:\n{recent_history}\n\nCARRYING: {inv_str}\n\nÉvaluez l'action, ajoutez un événement (un paragraphe). Générez aussi `image_prompt` en anglais (pas de violence) :",
-        'de': f"GESCHICHTE:\n{recent_history}\n\nCARRYING: {inv_str}\n\nAktion auswerten, neues Ereignis (ein Absatz). Auch `image_prompt` auf Englisch generieren (keine Gewalt):",
-        'ru': f"ИСТОРИЯ:\n{recent_history}\n\nCARRYING: {inv_str}\n\nОцени, добавь новое событие (один абзац). Также сгенерируй `image_prompt` на английском (только атмосфера, без жестокости):"
+        'en': f"RECENT HISTORY:\n{recent_history}\n\nCARRYING: {inv_str}  (if the action gives away / drops / uses up any of these, set item_dropped or item_consumed)\n\nEvaluate action, reveal consequence, add new event (one paragraph). Also generate `image_prompt` (atmospheric only, no violence):",
+        'fr': f"HISTORIQUE:\n{recent_history}\n\nCARRYING: {inv_str}  (if the action gives away / drops / uses up any of these, set item_dropped or item_consumed)\n\nÉvaluez l'action, ajoutez un événement (un paragraphe). Générez aussi `image_prompt` en anglais (pas de violence) :",
+        'de': f"GESCHICHTE:\n{recent_history}\n\nCARRYING: {inv_str}  (if the action gives away / drops / uses up any of these, set item_dropped or item_consumed)\n\nAktion auswerten, neues Ereignis (ein Absatz). Auch `image_prompt` auf Englisch generieren (keine Gewalt):",
+        'ru': f"ИСТОРИЯ:\n{recent_history}\n\nCARRYING: {inv_str}  (if the action gives away / drops / uses up any of these, set item_dropped or item_consumed)\n\nОцени, добавь новое событие (один абзац). Также сгенерируй `image_prompt` на английском (только атмосфера, без жестокости):"
     }
 
     response = client.chat.completions.create(
@@ -123,8 +124,8 @@ def game_master_node(state: EngineState):
     )
 
     image_url = None
-    if not IMAGES_ENABLED:
-        print("[DEBUG] Image generation disabled (ENABLE_IMAGES=0).")
+    if not IMAGES_ENABLED or state.get("skip_image"):
+        print("[DEBUG] Image generation skipped.")
     else:
         try:
             print(f"[DEBUG] Generating image: {response.image_prompt}")
@@ -174,6 +175,18 @@ def game_master_node(state: EngineState):
             updated_inventory.remove(match)
     if used_item and getattr(response, "item_consumed", False) and used_item in updated_inventory:
         updated_inventory.remove(used_item)
+    dropped = _match_item(getattr(response, "item_dropped", "") or "", updated_inventory)
+    if dropped:
+        updated_inventory.remove(dropped)
+
+    # Safety net: the LLM often forgets to flag "hand X to the guard" / "drop X".
+    # If the player's own words carry a discard verb, honour it against a named item.
+    last_user = next((h.lower() for h in reversed(state["narrative_history"]) if "user:" in h.lower()), "")
+    if re.search(r"\b(drop|drops|dropp|discard|throw|threw|thrown|toss|give|gave|gives|giving|hand|hands|handed|abandon|ditch|get rid|leave behind)\b", last_user):
+        for it in list(updated_inventory):
+            toks = [x for x in _norm(it).split() if len(x) > 3]
+            if _norm(it) in last_user or (toks and all(x in last_user for x in toks)):
+                updated_inventory.remove(it)
 
     new_history_entry = f"\nSYSTEM: {response.narrative_text}\n"
 
