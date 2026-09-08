@@ -17,10 +17,9 @@
             background-color: var(--bg-color);
             /* faint CRT: green/red scanlines + edge vignette. Swap for url('assets/bg-game.png') to use a real image. */
             background-image:
-                linear-gradient(rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.82)),
+                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
                 url('assets/bg-game.png');
-            background-size: cover;          /* or: repeat  (if the image is a seamless tile) */
-            background-position: center;
+            background-repeat: repeat;       /* tiles the texture; use 'no-repeat' + 'background-size: cover' for one big image */
             background-attachment: fixed;
             color: var(--terminal-green);
             font-family: 'Courier New', Courier, monospace;
@@ -47,7 +46,7 @@
             height: 100%;
             border: 1px solid var(--terminal-green);
             box-shadow: var(--text-glow);
-            background-color: #080808;
+            background-color: rgba(8, 8, 8, 0.6);   /* semi-transparent so the body image shows through */
             display: flex;
             flex-direction: column;
             padding: 15px;
@@ -202,19 +201,14 @@
                 overflow-y: visible;
                 padding: 10px;
             }
-
-            .terminal-container { background-color: rgba(8, 8, 8, 0.55); } 
-            body.finale-mode .terminal-container { background: transparent; }
-
         }
 
         /* ---- Finale mode: bare black screen, white Courier, terminal feel ---- */
         body.finale-mode {
             background-color: #000;
-            /* slow-drifting pixel field - "the scene was never solid". Swap for url('assets/bg-finale.png'). */
             background-image:
-                linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.78)),
-                url('assets/bg-finale.wbp');
+                linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+                url('assets/bg-finale.webp');
             background-size: cover;
             background-position: center;
         }
@@ -228,7 +222,7 @@
             height: 100vh;
         }
         body.finale-mode .terminal-container {
-            background: #000;
+            background: transparent;
             border: none;
             box-shadow: none;
             justify-content: flex-start;
