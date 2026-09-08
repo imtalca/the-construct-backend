@@ -12,6 +12,9 @@ load_dotenv()
 base_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=45.0, max_retries=2)
 client = instructor.from_openai(base_client)
 
+# Set ENABLE_IMAGES=0 (env or .env) to skip image generation for faster testing.
+IMAGES_ENABLED = os.getenv("ENABLE_IMAGES", "1").strip().lower() not in ("0", "false", "no", "off")
+
 
 def _norm(s: str) -> str:
     return re.sub(r"[-_]+", " ", (s or "").strip().lower())
@@ -59,7 +62,7 @@ def game_master_node(state: EngineState):
     metrics = raw_metrics.model_dump() if hasattr(raw_metrics, "model_dump") else dict(raw_metrics)
 
     turn = state.get("turn_count", 1)
-    max_turns = state.get("max_turns", 15)
+    max_turns = state.get("max_turns", 10)
     current_difficulty = 3 + (turn // 2)
 
     player_gender = state.get("player_gender", "Unspecified")
@@ -120,25 +123,28 @@ def game_master_node(state: EngineState):
     )
 
     image_url = None
-    try:
-        print(f"[DEBUG] Generating image: {response.image_prompt}")
-        image_res = base_client.images.generate(
-            model="gpt-image-2",
-            prompt=response.image_prompt,
-            size="1024x1024",
-            quality="low",
-            n=1,
-        )
-        img_item = image_res.data[0]
-        # gpt-image returns base64 (b64_json); dall-e returns a hosted url
-        if getattr(img_item, "url", None):
-            image_url = img_item.url
-        elif getattr(img_item, "b64_json", None):
-            image_url = f"data:image/png;base64,{img_item.b64_json}"
-        print("[DEBUG] Image generated.")
-    except Exception as e:
-        print(f"[ERROR] Failed to generate image: {e}")
-        image_url = None
+    if not IMAGES_ENABLED:
+        print("[DEBUG] Image generation disabled (ENABLE_IMAGES=0).")
+    else:
+        try:
+            print(f"[DEBUG] Generating image: {response.image_prompt}")
+            image_res = base_client.images.generate(
+                model="gpt-image-2",
+                prompt=response.image_prompt,
+                size="1024x1024",
+                quality="low",
+                n=1,
+            )
+            img_item = image_res.data[0]
+            # gpt-image returns base64 (b64_json); dall-e returns a hosted url
+            if getattr(img_item, "url", None):
+                image_url = img_item.url
+            elif getattr(img_item, "b64_json", None):
+                image_url = f"data:image/png;base64,{img_item.b64_json}"
+            print("[DEBUG] Image generated.")
+        except Exception as e:
+            print(f"[ERROR] Failed to generate image: {e}")
+            image_url = None
 
     stat_val = metrics.get(response.stat_tested, 3)
     used_item = _match_item(getattr(response, "item_used", "") or "", current_inventory)
@@ -280,7 +286,7 @@ def router_node(state: EngineState):
     return {}
 
 def route_next(state: EngineState) -> str:
-    max_t = state.get("max_turns", 15)
+    max_t = state.get("max_turns", 10)
     if state.get("turn_count", 1) >= max_t:
         return "finale"
     return "game_master"
