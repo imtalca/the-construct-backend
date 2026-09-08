@@ -74,7 +74,7 @@
             border-bottom: 1px solid var(--dim-green);
             padding-bottom: 4px;
             letter-spacing: 1px;
-            color: #ffffff;
+            color: var(--terminal-green);
         }
 
         .stat-row {
@@ -139,7 +139,7 @@
         }
 
         .message.user {
-            color: #ffffff;
+            color: var(--terminal-green);
             background: #111111;
             padding: 8px 10px;
             border-left: 3px solid var(--terminal-green);
@@ -171,7 +171,7 @@
             flex-grow: 1;
             background: transparent;
             border: none;
-            color: #ffffff;
+            color: var(--terminal-green);
             font-family: 'Courier New', Courier, monospace;
             font-size: 16px;
             outline: none;
@@ -233,7 +233,7 @@
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.92rem;
             line-height: 1.7;
-            color: #ffffff;
+            color: var(--terminal-green);
             text-shadow: none;
             white-space: pre-wrap;
         }
@@ -276,9 +276,9 @@
             min-width: 10.5em;
             flex-shrink: 0;
         }
-        body.finale-mode .ro-v { color: #ffffff; }
+        body.finale-mode .ro-v { color: var(--terminal-green); }
         body.finale-mode .final-line {
-            color: #ffffff;
+            color: var(--terminal-green);
             font-style: normal;
             font-size: 0.9rem;
             text-align: center;
@@ -298,6 +298,21 @@
             image-rendering: pixelated;
         }
 
+        /* the screen tears itself apart, then cuts to black */
+        body.glitch-out {
+            animation: glitchOut 0.95s steps(2, end) forwards;
+        }
+        @keyframes glitchOut {
+            0%   { filter: none; transform: none; }
+            8%   { filter: invert(1) saturate(5); transform: translate(-7px, 3px) skewX(-14deg); }
+            17%  { filter: none; transform: translate(9px, -5px); }
+            26%  { filter: contrast(4) brightness(1.9) hue-rotate(120deg); transform: translate(-12px, 7px) scaleY(1.06); }
+            38%  { filter: invert(1); transform: translate(14px, -3px) skewX(24deg); }
+            50%  { filter: none; transform: translate(-5px, -9px); }
+            63%  { filter: brightness(0.12) blur(1.5px); transform: translate(4px, 4px); }
+            79%  { filter: invert(1) brightness(2.4); transform: translate(-16px, 0) scaleX(1.1); }
+            100% { filter: brightness(0); transform: none; }
+        }
         @keyframes finaleFade {
             from { opacity: 0; }
             to   { opacity: 1; }
@@ -452,7 +467,7 @@
                 finalePressEnter: "[ PRESS ENTER ]",
                 finaleLastLine: "Only you hold the key to what lies beyond the Construct",
                 finaleRetry: "Try again?    [ yes / no ]",
-                finaleStay: "Then stay. The Construct is patient - and with you it is in no hurry.",
+                finaleStay: "So be it. Hope you enjoy staying stuck inside the Construct.",
                 roTitle: "SUBJECT READOUT",
                 roTurns: "TURNS",
                 roLeaned: "LEANED ON",
@@ -503,7 +518,7 @@
                 finalePressEnter: "[ APPUYEZ SUR ENTRÉE ]",
                 finaleLastLine: "Vous seul détenez la clé de ce qui se trouve au-delà du Construct",
                 finaleRetry: "Recommencer ?    [ oui / non ]",
-                finaleStay: "Alors reste. Le Construct est patient - et avec toi, il n'est pas pressé.",
+                finaleStay: "Soit. J'espère que tu apprécieras de rester coincé dans le Construct.",
                 roTitle: "RAPPORT DU SUJET",
                 roTurns: "TOURS",
                 roLeaned: "APPUYÉ SUR",
@@ -554,7 +569,7 @@
                 finalePressEnter: "[ ENTER DRÜCKEN ]",
                 finaleLastLine: "Nur du hältst den Schlüssel zu dem, was jenseits des Konstrukts liegt",
                 finaleRetry: "Nochmal versuchen?    [ ja / nein ]",
-                finaleStay: "Dann bleib. Das Konstrukt ist geduldig - und mit dir hat es alle Zeit.",
+                finaleStay: "Dann sei's drum. Viel Spaß beim Feststecken im Konstrukt - für immer.",
                 roTitle: "PROBANDEN-BERICHT",
                 roTurns: "RUNDEN",
                 roLeaned: "GESTÜTZT AUF",
@@ -605,7 +620,7 @@
                 finalePressEnter: "[ НАЖМИТЕ ENTER ]",
                 finaleLastLine: "Только ты владеешь ключом к тому, что лежит за пределами Конструкта",
                 finaleRetry: "Попробовать снова?    [ да / нет ]",
-                finaleStay: "Тогда останься. Конструкт терпелив - и с тобой он никуда не спешит.",
+                finaleStay: "Ну и ладно. Надеюсь, тебе понравится навсегда застрять в Конструкте.",
                 roTitle: "СВОДКА ПО СУБЪЕКТУ",
                 roTurns: "ХОДОВ",
                 roLeaned: "ОПОРА НА",
@@ -1056,6 +1071,13 @@
                     m.className = "message final-line";
                     terminalWindow.appendChild(m);
                     await typeInto(m, t.finaleStay, 46);
+
+                    await delay(5000);
+                    document.body.classList.add("glitch-out");
+                    await delay(950);
+                    const black = document.createElement("div");
+                    black.style.cssText = "position:fixed;inset:0;background:#000;z-index:99999;";
+                    document.body.appendChild(black);
                 }
                 return;
             }
