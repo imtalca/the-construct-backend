@@ -15,11 +15,12 @@
 
         body {
             background-color: var(--bg-color);
-            /* faint CRT: green/red scanlines + edge vignette. Swap for url('assets/bg-game.png') to use a real image. */
+            /* bg-game.png with a light dark wash. Raise the 0.3 alpha to dim it, lower to brighten. */
             background-image:
-                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
                 url('assets/bg-game.png');
-            background-repeat: repeat;       /* tiles the texture; use 'no-repeat' + 'background-size: cover' for one big image */
+            background-size: cover;
+            background-position: center;
             background-attachment: fixed;
             color: var(--terminal-green);
             font-family: 'Courier New', Courier, monospace;
@@ -46,7 +47,7 @@
             height: 100%;
             border: 1px solid var(--terminal-green);
             box-shadow: var(--text-glow);
-            background-color: rgba(8, 8, 8, 0.6);   /* semi-transparent so the body image shows through */
+            background-color: rgba(8, 8, 8, 0.45);   /* semi-transparent so the body image shows through */
             display: flex;
             flex-direction: column;
             padding: 15px;
@@ -297,7 +298,7 @@
             image-rendering: pixelated;
         }
 
-        .terminal-container { background-color: rgba(8, 8, 8, 0.6); }
+        .terminal-container { background-color: rgba(8, 8, 8, 0.45); }
 
         @keyframes finaleFade {
             from { opacity: 0; }
@@ -760,32 +761,37 @@
         const delay = (ms) => new Promise((r) => setTimeout(r, ms));
         const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&*+=-<>/\\|{}";
 
-        // Word-by-word "decrypt" reveal: each word flickers as glyphs then resolves.
-        function typeDecodeWords(element, text, wordMs = 48, scrambleMs = 165) {
-            const tokens = text.split(/(\s+)/);
+        // Two loose frontiers: `head` (where glyph-churn has reached) and `locked` (real
+        // text). Both advance by small-biased random amounts each frame, and `locked`
+        // sometimes stalls - so the churn zone breathes: a burst loads ~1-2 words of
+        // glyphs, some resolve, then it surges again. Never strictly word-by-word.
+        function typeDecrypt(element, text, opts = {}) {
+            const tick = opts.tick ?? 33;
+            const zoneCap = opts.zoneCap ?? 30;
             return new Promise((resolve) => {
-                let idx = 0, settled = "";
-                function next() {
-                    if (idx >= tokens.length) { resolve(); return; }
-                    const tok = tokens[idx++];
-                    if (/^\s+$/.test(tok)) { settled += tok; element.textContent = settled; return next(); }
-                    const start = performance.now();
-                    (function scramble() {
-                        if (performance.now() - start < scrambleMs) {
-                            let g = "";
-                            for (let k = 0; k < tok.length; k++) g += GLYPHS[(Math.random() * GLYPHS.length) | 0];
-                            element.textContent = settled + g;
-                            scrollToBottom();
-                            setTimeout(scramble, 24);
-                        } else {
-                            settled += tok;
-                            element.textContent = settled;
-                            scrollToBottom();
-                            setTimeout(next, wordMs);
-                        }
-                    })();
+                const N = text.length;
+                let head = 0, locked = 0;
+                function step() {
+                    head += 0.5 + Math.random() * Math.random() * 8.5;      // small-biased, occasional bursts
+                    if (head > N) head = N;
+                    if (Math.random() > 0.28) {                             // ~1 frame in 4, resolving stalls
+                        locked += 0.35 + Math.random() * Math.random() * 6.5;
+                    }
+                    if (head - locked > zoneCap) locked = head - zoneCap;
+                    if (locked > head) locked = head;
+
+                    const lk = Math.floor(locked), hd = Math.floor(head);
+                    let out = text.slice(0, lk);
+                    for (let i = lk; i < hd; i++) {
+                        out += /\s/.test(text[i]) ? text[i] : GLYPHS[(Math.random() * GLYPHS.length) | 0];
+                    }
+                    element.textContent = out;
+                    scrollToBottom();
+
+                    if (locked >= N) { element.textContent = text; resolve(); return; }
+                    setTimeout(step, tick);
                 }
-                next();
+                step();
             });
         }
 
@@ -886,7 +892,7 @@
             const body = document.createElement("div");
             body.className = "message system";
             terminalWindow.appendChild(body);
-            await typeDecodeWords(body, finaleText.trim());
+            await typeDecrypt(body, finaleText.trim());
             await delay(1100);
 
             await renderReadout(t);
@@ -907,9 +913,10 @@
             await typeInto(last, t.finaleLastLine, 52);
             last.classList.add("done");
 
-            // any key/click -> the QR appears (no prompt)
+            // any key/click -> its own screen: the QR alone
             await delay(500);
             await waitForAny();
+            terminalWindow.innerHTML = "";
             const qr = document.createElement("img");
             qr.className = "finale-qr";
             qr.alt = "";
@@ -918,9 +925,10 @@
             terminalWindow.appendChild(qr);
             scrollToBottom();
 
-            // any key/click again -> the Try again? prompt + the input reappears
+            // any key/click -> its own screen: the Try again? prompt + input reappears
             await delay(500);
             await waitForAny();
+            terminalWindow.innerHTML = "";
             const retry = document.createElement("div");
             retry.className = "message final-line";
             terminalWindow.appendChild(retry);
@@ -1045,11 +1053,11 @@
                     userInput.disabled = true;
                     userInput.blur();
                     document.body.classList.remove("finale-retry");
+                    terminalWindow.innerHTML = "";
                     const m = document.createElement("div");
                     m.className = "message final-line";
                     terminalWindow.appendChild(m);
                     await typeInto(m, t.finaleStay, 46);
-                    m.classList.add("done");
                 }
                 return;
             }
