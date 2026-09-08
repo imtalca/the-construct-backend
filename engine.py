@@ -1,4 +1,5 @@
 import os
+import re
 from collections import Counter
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -11,15 +12,43 @@ load_dotenv()
 base_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=45.0, max_retries=2)
 client = instructor.from_openai(base_client)
 
+
+def _norm(s: str) -> str:
+    return re.sub(r"[-_]+", " ", (s or "").strip().lower())
+
+
+def _match_item(name: str, inventory: list[str]) -> str:
+    """Fuzzily resolve an item name the LLM produced to the exact inventory entry.
+    Returns the canonical inventory string, or '' if nothing plausibly matches."""
+    n = _norm(name)
+    if not n:
+        return ""
+    for it in inventory:
+        if _norm(it) == n:
+            return it
+    for it in inventory:
+        i = _norm(it)
+        if n in i or i in n:
+            return it
+    ntok = set(n.split())
+    for it in inventory:
+        itok = set(_norm(it).split())
+        if itok and (itok <= ntok or ntok <= itok):
+            return it
+    return ""
+
 class GameTurnOutput(BaseModel):
     probed_the_frame: bool = Field(default=False, description="Decide this FIRST, judging ONLY the player's latest action. True if the action is an attempt to get out - leave / escape / exit / flee / climb out of this place or situation - OR to wake up, break the dream, or deny that any of this is real, OR to address the system / simulation / 'the construct' itself. TRUE examples: 'I run for the exit', 'I try to wake up', 'I look for the edge of the world', 'is this even real?', 'I climb out the window', 'I try to leave the ship'. FALSE examples: 'I talk to her', 'I search the desk', 'I fight the creature', 'I walk deeper inside', 'I pick up the key'.")
+    item_used: str | None = Field(default=None, description="If the player's action deliberately USES an item they are already carrying (see the CARRYING list in the prompt), copy that item's name here EXACTLY as written in that list. Otherwise null. Using a fitting carried item makes the action much more likely to succeed.")
+    item_consumed: bool = Field(default=False, description="Set true if `item_used` leaves the player's possession this turn - eaten, spent, destroyed, used up, thrown, dropped, or given away. Set false if they still have it after (keys, tools, weapons and devices kept in hand).")
+    picked_up: str | None = Field(default=None, description="If, this turn, the player picks up / takes / finds / is handed a NEW item, put its SHORT name (1-4 words) here. Otherwise null. Examples: 'I grab the shard from the floor' -> 'glowing shard'; 'the guard hands you a keycard' -> 'keycard'.")
     stat_tested: str = Field(description="The primary stat attribute name being used by the player's action, e.g. 'charm', 'tech', 'combat', 'stress_tolerance', etc.")
     success: bool = Field(description="Calculated automatically: True if player stat >= current difficulty threshold, False if player stat < current difficulty threshold.")
     narrative_text: str = Field(description="The cinematic narrative continuation in the requested language, written as a single short paragraph.")
     image_prompt: str = Field(description="A highly detailed, cinematic visual description of the current scene IN ENGLISH. MUST BE SAFE FOR WORK. NO violence, NO weapons, NO blood, NO combat. Focus ONLY on the atmospheric environment, sci-fi architecture, and lighting (e.g., 'wide shot, empty glowing corridors').")
     stat_upgraded: str | None = Field(default=None, description="If success is True, name the stat to upgrade (+1), otherwise null.")
-    items_added: list[str] = Field(default=[], description="Any items acquired this turn.")
-    items_removed: list[str] = Field(default=[], description="Any items lost or used this turn.")
+    items_added: list[str] = Field(default=[], description="SHORT names (1-4 words) of any items the player picks up, takes, finds, or is given this turn. Populate this whenever the narrative has them acquire something.")
+    items_removed: list[str] = Field(default=[], description="Names of items the player uses up, drops, gives away, breaks, or loses this turn. Copy each name EXACTLY from the CARRYING list. Reusable tools (keys, devices) normally stay - only list them if truly consumed or lost.")
 
 
 class FinaleOutput(BaseModel):
@@ -49,34 +78,35 @@ def game_master_node(state: EngineState):
 
     recent_history = "\n\n".join(state["narrative_history"][-4:])
     current_inventory = state.get("inventory", [])
+    inv_str = ", ".join(current_inventory) if current_inventory else "(nothing)"
 
     system_prompts_by_lang = {
         'en': f"""STRICT LANGUAGE: `narrative_text` IN ENGLISH ONLY. FORMAT: ONE COMPACT PARAGRAPH.
         Turn {turn}/{max_turns}. Difficulty: {current_difficulty}. Gender: {player_gender}.
         Stats: Tech:{m_tech}, Charm:{m_charm}, Fitness:{m_fitness}, Intellect:{m_intellect}, Combat:{m_combat}.
-        RULES: 1) Eval stat. 2) Success if Stat >= {current_difficulty}. 3) TAKE AGENCY: Introduce new obstacle or reason to act sometimes! 4) TONE: Vary the tone: sometimes wonder or calm or mundane discovery, not always dread. Avoid the words 'eerie', 'ominous', 'pulsating'. 5) FLAG: set probed_the_frame=true if the action tries to leave / escape / exit / climb out of this place or situation, wake up, or question whether any of this is real; else false.""",
+        RULES: 1) Eval stat. 2) Success if Stat >= {current_difficulty}. 3) TAKE AGENCY: Introduce new obstacle or reason to act sometimes! 4) TONE: Vary the tone: sometimes wonder or calm or mundane discovery, not always dread. Avoid the words 'eerie', 'ominous', 'pulsating'. 5) FLAG: set probed_the_frame=true if the action tries to leave / escape / exit / climb out of this place or situation, wake up, or question whether any of this is real; else false. 6) INVENTORY: pick-ups -> items_added (short name); items used up / dropped / given away -> items_removed (exact name from CARRYING); if the action uses a carried item, set item_used to that exact name. Every 2-3 turns, shape the new obstacle so one of the carried items is the obvious way through.""",
         
         'fr': f"""EXIGENCE LINGUISTIQUE: `narrative_text` EN FRANÇAIS SEULEMENT. FORMAT: UN SEUL PARAGRAPHE COMPACT.
         Tour {turn}/{max_turns}. Difficulté: {current_difficulty}. Genre: {player_gender}.
         Stats: Tech:{m_tech}, Charm:{m_charm}, Combat:{m_combat}.
-        RÈGLES: 1) Évaluez. 2) Succès si Stat >= {current_difficulty}. 3) FAITES AVANCER: Introduisez parfois un nouvel obstacle ou une raison pour une action! 4) TON: Varie le ton : parfois émerveillement, calme ou découverte banale, pas toujours l'effroi. Évite les mots 'étrange', 'menaçant', 'lancinant'. 5) SIGNAL: mets probed_the_frame=true si l'action tente de quitter / fuir / sortir / s'échapper de ce lieu ou de cette situation, de se réveiller, ou de douter que tout cela soit réel; sinon false.""",
+        RÈGLES: 1) Évaluez. 2) Succès si Stat >= {current_difficulty}. 3) FAITES AVANCER: Introduisez parfois un nouvel obstacle ou une raison pour une action! 4) TON: Varie le ton : parfois émerveillement, calme ou découverte banale, pas toujours l'effroi. Évite les mots 'étrange', 'menaçant', 'lancinant'. 5) SIGNAL: mets probed_the_frame=true si l'action tente de quitter / fuir / sortir / s'échapper de ce lieu ou de cette situation, de se réveiller, ou de douter que tout cela soit réel; sinon false. 6) INVENTAIRE: objets ramassés -> items_added (nom court); objets consommés / lâchés / donnés -> items_removed (nom exact de CARRYING); si l'action utilise un objet porté, mets item_used à ce nom exact. Tous les 2-3 tours, construis le nouvel obstacle autour d'un des objets portés.""",
         
         'de': f"""STRIKTE SPRACHANFORDERUNG: `narrative_text` NUR AUF DEUTSCH. FORMAT: EIN KOMPAKTER ABSATZ.
         Runde {turn}/{max_turns}. Schwelle: {current_difficulty}. Geschlecht: {player_gender}.
         Werte: Tech:{m_tech}, Combat:{m_combat}.
-        REGELN: 1) Auswerten. 2) Erfolg wenn >= {current_difficulty}. 3) NEUES HINDERNIS oder Grund für das Handeln manchmal einführen! 4) TON: Variiere den Ton: mal Staunen, Ruhe oder alltägliche Entdeckung, nicht immer Grauen. Vermeide die Wörter 'unheimlich', 'bedrohlich', 'pochend'. 5) FLAG: setze probed_the_frame=true, wenn die Handlung versucht, diesen Ort oder diese Lage zu verlassen / zu fliehen / hinauszukommen, aufzuwachen oder zu hinterfragen, ob das alles real ist; sonst false.""",
+        REGELN: 1) Auswerten. 2) Erfolg wenn >= {current_difficulty}. 3) NEUES HINDERNIS oder Grund für das Handeln manchmal einführen! 4) TON: Variiere den Ton: mal Staunen, Ruhe oder alltägliche Entdeckung, nicht immer Grauen. Vermeide die Wörter 'unheimlich', 'bedrohlich', 'pochend'. 5) FLAG: setze probed_the_frame=true, wenn die Handlung versucht, diesen Ort oder diese Lage zu verlassen / zu fliehen / hinauszukommen, aufzuwachen oder zu hinterfragen, ob das alles real ist; sonst false. 6) INVENTAR: Aufgesammeltes -> items_added (Kurzname); verbrauchte / fallengelassene / verschenkte Gegenstaende -> items_removed (exakter Name aus CARRYING); wenn die Handlung einen getragenen Gegenstand nutzt, setze item_used auf genau diesen Namen. Alle 2-3 Runden das neue Hindernis um einen getragenen Gegenstand herum bauen.""",
         
         'ru': f"""СТРОГОЕ ТРЕБОВАНИЕ: `narrative_text` ТОЛЬКО НА РУССКОМ. ФОРМАТ: ОДИН КОМПАКТНЫЙ АБЗАЦ.
         Ход {turn}/{max_turns}. Сложность: {current_difficulty}. Пол: {player_gender}.
         Характеристики: Tech:{m_tech}, Charm:{m_charm}, Combat:{m_combat}.
-        ПРАВИЛА: 1) Оцени. 2) Успех если >= {current_difficulty}. 3) БЕРИ ИНИЦИАТИВУ: периодически вводи новое препятствие или причину для действия! 4) ТОН: Меняй тон: иногда удивление, спокойствие или обыденное открытие, не всегда страх. Избегай слов 'жуткий', 'зловещий', 'пульсирующий'. 5) ФЛАГ: ставь probed_the_frame=true, если действие пытается покинуть / сбежать / выйти / выбраться из этого места или ситуации, проснуться или усомниться в реальности происходящего; иначе false."""
+        ПРАВИЛА: 1) Оцени. 2) Успех если >= {current_difficulty}. 3) БЕРИ ИНИЦИАТИВУ: периодически вводи новое препятствие или причину для действия! 4) ТОН: Меняй тон: иногда удивление, спокойствие или обыденное открытие, не всегда страх. Избегай слов 'жуткий', 'зловещий', 'пульсирующий'. 5) ФЛАГ: ставь probed_the_frame=true, если действие пытается покинуть / сбежать / выйти / выбраться из этого места или ситуации, проснуться или усомниться в реальности происходящего; иначе false. 6) ИНВЕНТАРЬ: подобранное -> items_added (короткое имя); израсходованные / брошенные / отданные предметы -> items_removed (точное имя из CARRYING); если действие использует носимый предмет, укажи item_used с этим точным именем. Каждые 2-3 хода строй новое препятствие вокруг одного из носимых предметов."""
     }
 
     user_prompts_by_lang = {
-        'en': f"RECENT HISTORY:\n{recent_history}\n\nEvaluate action, reveal consequence, add new event (one paragraph). Also generate `image_prompt` (atmospheric only, no violence):",
-        'fr': f"HISTORIQUE:\n{recent_history}\n\nÉvaluez l'action, ajoutez un événement (un paragraphe). Générez aussi `image_prompt` en anglais (pas de violence) :",
-        'de': f"GESCHICHTE:\n{recent_history}\n\nAktion auswerten, neues Ereignis (ein Absatz). Auch `image_prompt` auf Englisch generieren (keine Gewalt):",
-        'ru': f"ИСТОРИЯ:\n{recent_history}\n\nОцени, добавь новое событие (один абзац). Также сгенерируй `image_prompt` на английском (только атмосфера, без жестокости):"
+        'en': f"RECENT HISTORY:\n{recent_history}\n\nCARRYING: {inv_str}\n\nEvaluate action, reveal consequence, add new event (one paragraph). Also generate `image_prompt` (atmospheric only, no violence):",
+        'fr': f"HISTORIQUE:\n{recent_history}\n\nCARRYING: {inv_str}\n\nÉvaluez l'action, ajoutez un événement (un paragraphe). Générez aussi `image_prompt` en anglais (pas de violence) :",
+        'de': f"GESCHICHTE:\n{recent_history}\n\nCARRYING: {inv_str}\n\nAktion auswerten, neues Ereignis (ein Absatz). Auch `image_prompt` auf Englisch generieren (keine Gewalt):",
+        'ru': f"ИСТОРИЯ:\n{recent_history}\n\nCARRYING: {inv_str}\n\nОцени, добавь новое событие (один абзац). Также сгенерируй `image_prompt` на английском (только атмосфера, без жестокости):"
     }
 
     response = client.chat.completions.create(
@@ -111,7 +141,9 @@ def game_master_node(state: EngineState):
         image_url = None
 
     stat_val = metrics.get(response.stat_tested, 3)
-    if stat_val >= current_difficulty:
+    used_item = _match_item(getattr(response, "item_used", "") or "", current_inventory)
+    effective = stat_val + (3 if used_item else 0)  # a fitting carried item tips the odds
+    if effective >= current_difficulty:
         response.success = True
         response.stat_upgraded = response.stat_tested
     else:
@@ -123,14 +155,19 @@ def game_master_node(state: EngineState):
         metrics[key] = metrics.get(key, 3) + 1
 
     updated_inventory = list(current_inventory)
-    for item in response.items_added:
+    added = list(response.items_added)
+    if getattr(response, "picked_up", None):
+        added.append(response.picked_up)
+    for item in added:
         clean_item = item.strip()
-        if clean_item and clean_item not in updated_inventory:
+        if clean_item and not _match_item(clean_item, updated_inventory):
             updated_inventory.append(clean_item)
     for item in response.items_removed:
-        clean_item = item.strip()
-        if clean_item in updated_inventory:
-            updated_inventory.remove(clean_item)
+        match = _match_item(item, updated_inventory)
+        if match:
+            updated_inventory.remove(match)
+    if used_item and getattr(response, "item_consumed", False) and used_item in updated_inventory:
+        updated_inventory.remove(used_item)
 
     new_history_entry = f"\nSYSTEM: {response.narrative_text}\n"
 
@@ -138,6 +175,7 @@ def game_master_node(state: EngineState):
         "stat": response.stat_tested,
         "success": bool(response.success),
         "probed": bool(getattr(response, "probed_the_frame", False)),
+        "item": used_item or None,
     }
 
     return {
@@ -175,6 +213,7 @@ def finale_node(state: EngineState):
     wins = sum(1 for e in log if e.get("success"))
     losses = len(log) - wins
     probes = sum(1 for e in log if e.get("probed"))
+    items_leaned_on = ", ".join(sorted({e.get("item") for e in log if e.get("item")})) or "no item, ever"
 
     leaned_on = ", ".join(s for s, _ in tested.most_common(3)) or "nothing in particular"
     never_used = ", ".join(s for s in CORE_STATS if not tested.get(s)) or "none - they used everything"
@@ -203,6 +242,7 @@ Stats never once used: {never_used}
 Stats that rose during the run: {grew}
 Record: {wins} successes, {losses} failures
 {frame_line}
+Items they actually leaned on: {items_leaned_on}
 Ended holding: {inventory}
 Gender classification it assigned them: {state.get('player_gender', 'Unspecified')}
 

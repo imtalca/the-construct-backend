@@ -241,17 +241,63 @@
         body.finale-mode .finale-hint {
             color: #4a7a4a;
             font-size: 0.85rem;
+            letter-spacing: 2px;
+            margin-top: 6px;
             animation: caretBlink 1.2s step-end infinite;
         }
+        body.finale-mode .finale-head {
+            color: #3f7a3f;
+            font-size: 0.78rem;
+            letter-spacing: 4px;
+            border-bottom: 1px solid #234023;
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+        }
+        body.finale-mode .finale-readout {
+            border-top: 1px solid #234023;
+            border-bottom: 1px solid #234023;
+            padding: 12px 0;
+            margin: 4px 0;
+            max-width: 44em;
+            font-size: 0.9rem;
+        }
+        body.finale-mode .ro-title {
+            color: #3f7a3f;
+            font-size: 0.72rem;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+        }
+        body.finale-mode .ro-row {
+            display: flex;
+            gap: 18px;
+            line-height: 2;
+        }
+        body.finale-mode .ro-k {
+            color: #5f9f5f;
+            min-width: 12em;
+            flex-shrink: 0;
+        }
+        body.finale-mode .ro-v { color: #ffffff; }
         body.finale-mode .final-line {
             color: #ffffff;
             font-style: normal;
             font-size: 0.9rem;
             text-align: center;
+            letter-spacing: 1px;
+            animation: finaleFade 1.1s ease both;
         }
         body.finale-mode .final-line.done::after {
             content: "_";
             animation: caretBlink 1.1s step-end infinite;
+        }
+        /* faint CRT scanlines - subtle; delete this rule to remove */
+        body.finale-mode::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 30;
+            background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.022) 0 1px, transparent 1px 3px);
         }
         @keyframes finaleFade {
             from { opacity: 0; }
@@ -392,7 +438,24 @@
                 diagnosticHeader: "PSYCHOMETRIC DIAGNOSTIC",
                 locGenHeader: "LOCATION GENERATION",
                 none: "None",
-                statNames: { tech: "TECH", charm: "CHARM", language: "LANGUAGE", intellect: "INTELLECT", combat: "COMBAT", wealth: "WEALTH", cautiousness: "CAUTIOUSNESS" }
+                loadingTurn: "[SYS:// DECRYPTING VISUAL & AUDIO LOGS...]",
+                locGenLoading: "> GENERATING LOCATION... (server may be waking up, up to ~50s)",
+                locGenRetry: "> STILL TRYING... (attempt {n}/3)",
+                locGenFail: "ERR: Could not reach THE CONSTRUCT. Type 'reroll' to try again.",
+                locGenFailPh: "type 'reroll'",
+                accessDenied: "ERR: ACCESS DENIED. Wrong key - reload the page to re-enter.",
+                lostConnection: "ERR: LOST CONNECTION TO THE CONSTRUCT SERVER.",
+                finaleHeader: "SIGNAL LOST  //  FINAL ASSESSMENT",
+                finalePressEnter: "[ PRESS ENTER ]",
+                finaleLastLine: "Only you hold the key to what lies beyond the Construct",
+                roTitle: "SUBJECT READOUT",
+                roTurns: "TURNS",
+                roLeaned: "LEANED ON",
+                roNever: "NEVER USED",
+                roOutcome: "OUTCOME",
+                roProbes: "FRAME PROBES",
+                roItems: "CARRIED OUT",
+                statNames: { tech: "TECH", charm: "CHARM", fitness: "FITNESS", language: "LANGUAGE", intellect: "INTELLECT", combat: "COMBAT", wealth: "WEALTH", cautiousness: "CAUTIOUSNESS" }
             },
             fr: {
                 boot: ["INITIALISATION DE LA BASE NEURALE...", "SYNCHRONISATION DES MÉTRIQUES...", "CHARGEMENT DU MOTEUR..."],
@@ -424,7 +487,24 @@
                 diagnosticHeader: "DIAGNOSTIC PSYCHOMÉTRIQUE",
                 locGenHeader: "GÉNÉRATION DE LIEU",
                 none: "Aucun",
-                statNames: { tech: "TECHNO", charm: "CHARME", language: "LANGAGE", intellect: "INTELLECT", combat: "COMBAT", wealth: "RICHESSE", cautiousness: "PRUDENCE" }
+                loadingTurn: "[SYS:// DÉCRYPTAGE DES JOURNAUX VISUELS & AUDIO...]",
+                locGenLoading: "> GÉNÉRATION DU LIEU... (le serveur se réveille peut-être, jusqu'à ~50s)",
+                locGenRetry: "> NOUVELLE TENTATIVE... (essai {n}/3)",
+                locGenFail: "ERR: Impossible de joindre THE CONSTRUCT. Tapez 'reroll' pour réessayer.",
+                locGenFailPh: "tapez 'reroll'",
+                accessDenied: "ERR: ACCÈS REFUSÉ. Mauvaise clé - rechargez la page pour la ressaisir.",
+                lostConnection: "ERR: CONNEXION AU SERVEUR THE CONSTRUCT PERDUE.",
+                finaleHeader: "SIGNAL PERDU  //  ÉVALUATION FINALE",
+                finalePressEnter: "[ APPUYEZ SUR ENTRÉE ]",
+                finaleLastLine: "Vous seul détenez la clé de ce qui se trouve au-delà du Construct",
+                roTitle: "RAPPORT DU SUJET",
+                roTurns: "TOURS",
+                roLeaned: "APPUYÉ SUR",
+                roNever: "JAMAIS UTILISÉ",
+                roOutcome: "RÉSULTAT",
+                roProbes: "TENTATIVES DE SORTIE",
+                roItems: "EMPORTÉ",
+                statNames: { tech: "TECHNO", charm: "CHARME", fitness: "FORME", language: "LANGAGE", intellect: "INTELLECT", combat: "COMBAT", wealth: "RICHESSE", cautiousness: "PRUDENCE" }
             },
             de: {
                 boot: ["NEURALE BASIS WIRD INITIALISIERT...", "METRIKEN WERDEN SYNCHRONISIERT...", "ENGINE WIRD GELADEN..."],
@@ -456,7 +536,24 @@
                 diagnosticHeader: "PSYCHOMETRISCHE DIAGNOSTIK",
                 locGenHeader: "STANDORTGENERIERUNG",
                 none: "Keine",
-                statNames: { tech: "TECH", charm: "CHARM", language: "SPRACHE", intellect: "INTELEKT", combat: "KAMPF", wealth: "REICHTUM", cautiousness: "VORSICHT" }
+                loadingTurn: "[SYS:// ENTSCHLÜSSELE VISUELLE & AUDIO-LOGS...]",
+                locGenLoading: "> ORT WIRD GENERIERT... (Server startet evtl., bis zu ~50s)",
+                locGenRetry: "> NEUER VERSUCH... (Versuch {n}/3)",
+                locGenFail: "ERR: THE CONSTRUCT nicht erreichbar. Tippen Sie 'reroll' zum Wiederholen.",
+                locGenFailPh: "'reroll' tippen",
+                accessDenied: "ERR: ZUGRIFF VERWEIGERT. Falscher Schlüssel - Seite neu laden zur Eingabe.",
+                lostConnection: "ERR: VERBINDUNG ZUM THE-CONSTRUCT-SERVER VERLOREN.",
+                finaleHeader: "SIGNAL VERLOREN  //  ABSCHLUSSBEWERTUNG",
+                finalePressEnter: "[ ENTER DRÜCKEN ]",
+                finaleLastLine: "Nur du hältst den Schlüssel zu dem, was jenseits des Konstrukts liegt",
+                roTitle: "PROBANDEN-BERICHT",
+                roTurns: "RUNDEN",
+                roLeaned: "GESTÜTZT AUF",
+                roNever: "NIE GENUTZT",
+                roOutcome: "ERGEBNIS",
+                roProbes: "AUSBRUCHSVERSUCHE",
+                roItems: "MITGENOMMEN",
+                statNames: { tech: "TECH", charm: "CHARM", fitness: "FITNESS", language: "SPRACHE", intellect: "INTELEKT", combat: "KAMPF", wealth: "REICHTUM", cautiousness: "VORSICHT" }
             },
             ru: {
                 boot: ["ИНИЦИАЛИЗАЦИЯ НЕЙРОБАЗЫ...", "СИНХРОНИЗАЦИЯ МЕТРИК...", "ЗАГРУЗКА ДВИЖКА..."],
@@ -488,7 +585,24 @@
                 diagnosticHeader: "ПСИХОМЕТРИЧЕСКАЯ ДИАГНОСТИКА",
                 locGenHeader: "ГЕНЕРАЦИЯ ЛОКАЦИИ",
                 none: "Нет",
-                statNames: { tech: "ТЕХНИКА", charm: "ХАРИЗМА", language: "ЯЗЫК", intellect: "ИНТЕЛЛЕКТ", combat: "БОЙ", wealth: "БОГАТСТВО", cautiousness: "ОСТОРОЖНОСТЬ" }
+                loadingTurn: "[SYS:// РАСШИФРОВКА ВИЗУАЛЬНЫХ И АУДИО-ЛОГОВ...]",
+                locGenLoading: "> ГЕНЕРАЦИЯ ЛОКАЦИИ... (сервер может просыпаться, до ~50с)",
+                locGenRetry: "> ПОВТОРНАЯ ПОПЫТКА... (попытка {n}/3)",
+                locGenFail: "ERR: Не удалось связаться с THE CONSTRUCT. Введите 'reroll' для повтора.",
+                locGenFailPh: "введите 'reroll'",
+                accessDenied: "ERR: ДОСТУП ЗАПРЕЩЁН. Неверный ключ - перезагрузите страницу для ввода.",
+                lostConnection: "ERR: СОЕДИНЕНИЕ С СЕРВЕРОМ THE CONSTRUCT ПОТЕРЯНО.",
+                finaleHeader: "СИГНАЛ ПОТЕРЯН  //  ИТОГОВАЯ ОЦЕНКА",
+                finalePressEnter: "[ НАЖМИТЕ ENTER ]",
+                finaleLastLine: "Только ты владеешь ключом к тому, что лежит за пределами Конструкта",
+                roTitle: "СВОДКА ПО СУБЪЕКТУ",
+                roTurns: "ХОДОВ",
+                roLeaned: "ОПОРА НА",
+                roNever: "НИ РАЗУ",
+                roOutcome: "ИТОГ",
+                roProbes: "ПОПЫТКИ ВЫЙТИ",
+                roItems: "ВЫНЕСЕНО",
+                statNames: { tech: "ТЕХНИКА", charm: "ХАРИЗМА", fitness: "ФОРМА", language: "ЯЗЫК", intellect: "ИНТЕЛЛЕКТ", combat: "БОЙ", wealth: "БОГАТСТВО", cautiousness: "ОСТОРОЖНОСТЬ" }
             }
         };
 
@@ -631,7 +745,37 @@
             });
         }
 
-        const FINAL_LINE = "Only you hold the key to what lies beyond the Construct";
+        const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+        const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&*+=-<>/\\|{}";
+
+        // Word-by-word "decrypt" reveal: each word flickers as glyphs then resolves.
+        function typeDecodeWords(element, text, wordMs = 42, scrambleMs = 90) {
+            const tokens = text.split(/(\s+)/);
+            return new Promise((resolve) => {
+                let idx = 0, settled = "";
+                function next() {
+                    if (idx >= tokens.length) { resolve(); return; }
+                    const tok = tokens[idx++];
+                    if (/^\s+$/.test(tok)) { settled += tok; element.textContent = settled; return next(); }
+                    const start = performance.now();
+                    (function scramble() {
+                        if (performance.now() - start < scrambleMs) {
+                            let g = "";
+                            for (let k = 0; k < tok.length; k++) g += GLYPHS[(Math.random() * GLYPHS.length) | 0];
+                            element.textContent = settled + g;
+                            scrollToBottom();
+                            setTimeout(scramble, 24);
+                        } else {
+                            settled += tok;
+                            element.textContent = settled;
+                            scrollToBottom();
+                            setTimeout(next, wordMs);
+                        }
+                    })();
+                }
+                next();
+            });
+        }
 
         function waitForEnter() {
             return new Promise((resolve) => {
@@ -648,22 +792,85 @@
             });
         }
 
+        // A system-printout of the player's real record, from gameState.turn_log.
+        async function renderReadout(t) {
+            const log = Array.isArray(gameState.turn_log) ? gameState.turn_log : [];
+            const counts = {};
+            let wins = 0, probes = 0;
+            const itemsUsed = new Set();
+            for (const e of log) {
+                if (!e) continue;
+                if (e.stat) counts[e.stat] = (counts[e.stat] || 0) + 1;
+                if (e.success) wins++;
+                if (e.probed) probes++;
+                if (e.item) itemsUsed.add(e.item);
+            }
+            const sn = t.statNames || {};
+            const nm = (s) => sn[s] || String(s).toUpperCase().replace(/_/g, " ");
+            const leaned = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s]) => nm(s));
+            const core = ["tech", "charm", "fitness", "intellect", "combat"];
+            const never = core.filter((s) => !counts[s]).map(nm);
+            const carried = Array.isArray(gameState.inventory) ? gameState.inventory : [];
+
+            const rows = [
+                [t.roTurns, String(log.length)],
+                [t.roLeaned, leaned.join("  ·  ") || "—"],
+                [t.roNever, never.join("  ·  ") || "—"],
+                [t.roOutcome, `${wins} / ${log.length - wins}`],
+                [t.roProbes, String(probes)],
+                [t.roItems, carried.join(",  ") || t.none],
+            ];
+
+            const box = document.createElement("div");
+            box.className = "message finale-readout";
+            const title = document.createElement("div");
+            title.className = "ro-title";
+            box.appendChild(title);
+            terminalWindow.appendChild(box);
+
+            await typeInto(title, t.roTitle, 12);
+            for (const [key, val] of rows) {
+                const r = document.createElement("div");
+                r.className = "ro-row";
+                const k = document.createElement("span");
+                k.className = "ro-k";
+                k.textContent = key;
+                const v = document.createElement("span");
+                v.className = "ro-v";
+                r.append(k, v);
+                box.appendChild(r);
+                await typeInto(v, val, 9);
+                await delay(70);
+            }
+        }
+
         async function renderFinale(finaleText) {
             document.body.classList.add("finale-mode");
             userInput.disabled = true;
             userInput.blur();
             turnIndicator.textContent = "";
             terminalWindow.innerHTML = "";
+            const t = translations[gameState.language] || translations.en;
+
+            const head = document.createElement("div");
+            head.className = "message finale-head";
+            terminalWindow.appendChild(head);
+            await typeInto(head, t.finaleHeader, 14);
+            await delay(350);
 
             const body = document.createElement("div");
             body.className = "message system";
             terminalWindow.appendChild(body);
-            await typeInto(body, finaleText.trim(), 16);
+            await typeDecodeWords(body, finaleText.trim());
+            await delay(500);
+
+            await renderReadout(t);
+            await delay(450);
 
             const hint = document.createElement("div");
             hint.className = "message finale-hint";
             terminalWindow.appendChild(hint);
-            await typeInto(hint, "[ PRESS ENTER ]", 28);
+            await typeInto(hint, t.finalePressEnter, 26);
 
             await waitForEnter();
 
@@ -672,7 +879,7 @@
             const last = document.createElement("div");
             last.className = "message final-line";
             terminalWindow.appendChild(last);
-            await typeInto(last, FINAL_LINE, 55);
+            await typeInto(last, t.finaleLastLine, 52);
             last.classList.add("done");
         }
 
@@ -694,7 +901,7 @@
 
         async function fetchRandomLocation(attempt = 1) {
             userInput.disabled = true;
-            const t = translations[gameState.language];
+            const t = translations[gameState.language] || translations.en;
             turnIndicator.textContent = t.locGenHeader;
 
             let loadingDiv = terminalWindow.querySelector(".loc-loading");
@@ -705,8 +912,8 @@
                 terminalWindow.appendChild(loadingDiv);
             }
             loadingDiv.textContent = attempt === 1
-                ? "> GENERATING LOCATION... (server may be waking up, up to ~50s)"
-                : `> STILL TRYING... (attempt ${attempt}/3)`;
+                ? t.locGenLoading
+                : t.locGenRetry.replace("{n}", attempt);
             scrollToBottom();
 
             const ctrl = new AbortController();
@@ -723,7 +930,7 @@
                 if (response.status === 401) {
                     clearKey();
                     loadingDiv.remove();
-                    addMessage("ERR: ACCESS DENIED. Wrong key - reload the page to re-enter.", "system");
+                    addMessage(t.accessDenied, "system");
                     userInput.disabled = false;
                     return;
                 }
@@ -754,8 +961,8 @@
                     await new Promise(r => setTimeout(r, 1500));
                     return fetchRandomLocation(attempt + 1);
                 }
-                loadingDiv.textContent = "ERR: Could not reach THE CONSTRUCT. Type 'reroll' to try again.";
-                userInput.placeholder = "type 'reroll'";
+                loadingDiv.textContent = t.locGenFail;
+                userInput.placeholder = t.locGenFailPh;
                 userInput.disabled = false;
                 userInput.focus();
             }
@@ -943,7 +1150,7 @@
                 const loadingIndicator = document.createElement("div");
                 loadingIndicator.className = "message system";
                 loadingIndicator.style.fontStyle = "italic";
-                loadingIndicator.textContent = "[SYS:// DECRYPTING VISUAL & AUDIO LOGS...]";
+                loadingIndicator.textContent = t.loadingTurn;
                 terminalWindow.appendChild(loadingIndicator);
                 scrollToBottom();
 
@@ -959,7 +1166,7 @@
 
                     if (response.status === 401) {
                         clearKey();
-                        throw new Error("ACCESS DENIED - wrong key. Reload the page to re-enter.");
+                        throw new Error(t.accessDenied);
                     }
 
                     if (!response.ok) {
@@ -1017,7 +1224,7 @@
                 } catch (error) {
                     console.error("Transmission error:", error);
                     if (loadingIndicator.parentNode) terminalWindow.removeChild(loadingIndicator);
-                    addMessage(`ERR: ${error.message || "LOST CONNECTION TO THE CONSTRUCT SERVER."}`, "system");
+                    addMessage(error.message || t.lostConnection, "system");
                     userInput.disabled = false;
                     userInput.focus();
                 }
