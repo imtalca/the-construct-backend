@@ -203,15 +203,18 @@
             }
         }
 
-        /* ---- Finale: a smaller centered terminal window, same look as the game, no HUD ---- */
+        /* ---- Finale: a centered terminal window, same look as the game, no HUD ---- */
         body.finale-mode .sidebar,
         body.finale-mode .terminal-header,
         body.finale-mode .input-form {
             display: none;
         }
+        body.finale-mode.finale-retry .input-form {
+            display: flex;
+        }
         body.finale-mode .layout-wrapper {
-            max-width: 600px;
-            height: 64vh;
+            max-width: 780px;
+            height: 78vh;
         }
         body.finale-mode .terminal-container {
             justify-content: flex-start;
@@ -227,7 +230,7 @@
         }
         body.finale-mode .message {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 0.8rem;
+            font-size: 0.92rem;
             line-height: 1.7;
             color: #ffffff;
             text-shadow: none;
@@ -235,14 +238,14 @@
         }
         body.finale-mode .finale-hint {
             color: #4a7a4a;
-            font-size: 0.72rem;
+            font-size: 0.8rem;
             letter-spacing: 2px;
             margin-top: 6px;
             animation: caretBlink 1.2s step-end infinite;
         }
         body.finale-mode .finale-head {
             color: #3f7a3f;
-            font-size: 0.66rem;
+            font-size: 0.74rem;
             letter-spacing: 3px;
             border-bottom: 1px solid #234023;
             padding-bottom: 8px;
@@ -254,11 +257,11 @@
             padding: 10px 0;
             margin: 4px 0;
             max-width: 100%;
-            font-size: 0.78rem;
+            font-size: 0.86rem;
         }
         body.finale-mode .ro-title {
             color: #3f7a3f;
-            font-size: 0.62rem;
+            font-size: 0.7rem;
             letter-spacing: 3px;
             margin-bottom: 10px;
         }
@@ -269,14 +272,14 @@
         }
         body.finale-mode .ro-k {
             color: #5f9f5f;
-            min-width: 9.5em;
+            min-width: 10.5em;
             flex-shrink: 0;
         }
         body.finale-mode .ro-v { color: #ffffff; }
         body.finale-mode .final-line {
             color: #ffffff;
             font-style: normal;
-            font-size: 0.78rem;
+            font-size: 0.9rem;
             text-align: center;
             letter-spacing: 1px;
             animation: finaleFade 1.1s ease both;
@@ -284,6 +287,14 @@
         body.finale-mode .final-line.done::after {
             content: "_";
             animation: caretBlink 1.1s step-end infinite;
+        }
+        body.finale-mode .finale-qr {
+            width: 44%;
+            max-width: 200px;
+            margin: 6px auto;
+            display: block;
+            border: 1px solid var(--dim-green);
+            image-rendering: pixelated;
         }
 
         .terminal-container { background-color: rgba(8, 8, 8, 0.6); }
@@ -441,6 +452,8 @@
                 finaleHeader: "SIGNAL LOST  //  FINAL ASSESSMENT",
                 finalePressEnter: "[ PRESS ENTER ]",
                 finaleLastLine: "Only you hold the key to what lies beyond the Construct",
+                finaleRetry: "Try again?    [ yes / no ]",
+                finaleStay: "Then stay. The Construct is patient - and with you it is in no hurry.",
                 roTitle: "SUBJECT READOUT",
                 roTurns: "TURNS",
                 roLeaned: "LEANED ON",
@@ -490,6 +503,8 @@
                 finaleHeader: "SIGNAL PERDU  //  ÉVALUATION FINALE",
                 finalePressEnter: "[ APPUYEZ SUR ENTRÉE ]",
                 finaleLastLine: "Vous seul détenez la clé de ce qui se trouve au-delà du Construct",
+                finaleRetry: "Recommencer ?    [ oui / non ]",
+                finaleStay: "Alors reste. Le Construct est patient - et avec toi, il n'est pas pressé.",
                 roTitle: "RAPPORT DU SUJET",
                 roTurns: "TOURS",
                 roLeaned: "APPUYÉ SUR",
@@ -539,6 +554,8 @@
                 finaleHeader: "SIGNAL VERLOREN  //  ABSCHLUSSBEWERTUNG",
                 finalePressEnter: "[ ENTER DRÜCKEN ]",
                 finaleLastLine: "Nur du hältst den Schlüssel zu dem, was jenseits des Konstrukts liegt",
+                finaleRetry: "Nochmal versuchen?    [ ja / nein ]",
+                finaleStay: "Dann bleib. Das Konstrukt ist geduldig - und mit dir hat es alle Zeit.",
                 roTitle: "PROBANDEN-BERICHT",
                 roTurns: "RUNDEN",
                 roLeaned: "GESTÜTZT AUF",
@@ -588,6 +605,8 @@
                 finaleHeader: "СИГНАЛ ПОТЕРЯН  //  ИТОГОВАЯ ОЦЕНКА",
                 finalePressEnter: "[ НАЖМИТЕ ENTER ]",
                 finaleLastLine: "Только ты владеешь ключом к тому, что лежит за пределами Конструкта",
+                finaleRetry: "Попробовать снова?    [ да / нет ]",
+                finaleStay: "Тогда останься. Конструкт терпелив - и с тобой он никуда не спешит.",
                 roTitle: "СВОДКА ПО СУБЪЕКТУ",
                 roTurns: "ХОДОВ",
                 roLeaned: "ОПОРА НА",
@@ -785,6 +804,19 @@
             });
         }
 
+        // Resolves on ANY key or click (no prompt shown to the player).
+        function waitForAny() {
+            return new Promise((resolve) => {
+                function done() {
+                    window.removeEventListener("keydown", done);
+                    window.removeEventListener("click", done);
+                    resolve();
+                }
+                window.addEventListener("keydown", done);
+                window.addEventListener("click", done);
+            });
+        }
+
         // A system-printout of the player's real record, from gameState.turn_log.
         async function renderReadout(t) {
             const log = Array.isArray(gameState.turn_log) ? gameState.turn_log : [];
@@ -874,6 +906,32 @@
             terminalWindow.appendChild(last);
             await typeInto(last, t.finaleLastLine, 52);
             last.classList.add("done");
+
+            // any key/click -> the QR appears (no prompt)
+            await delay(500);
+            await waitForAny();
+            const qr = document.createElement("img");
+            qr.className = "finale-qr";
+            qr.alt = "";
+            qr.onerror = () => qr.remove();
+            qr.src = "assets/qr.png";
+            terminalWindow.appendChild(qr);
+            scrollToBottom();
+
+            // any key/click again -> the Try again? prompt + the input reappears
+            await delay(500);
+            await waitForAny();
+            const retry = document.createElement("div");
+            retry.className = "message final-line";
+            terminalWindow.appendChild(retry);
+            await typeInto(retry, t.finaleRetry, 36);
+
+            gamePhase = "finale_retry";
+            document.body.classList.add("finale-retry");
+            userInput.value = "";
+            userInput.disabled = false;
+            userInput.placeholder = "";
+            userInput.focus();
         }
 
         function typeQuestion(text, callback) {
@@ -974,6 +1032,27 @@
             const inputVal = userInput.value.trim();
             const inputValUpper = inputVal.toUpperCase();
             const t = translations[gameState.language] || translations.en;
+
+            if (gamePhase === "finale_retry") {
+                const ans = inputVal.toLowerCase();
+                userInput.value = "";
+                const YES = ["yes", "y", "oui", "o", "ja", "j", "да", "д"];
+                const NO = ["no", "n", "non", "nein", "нет", "н", "не"];
+                if (YES.includes(ans)) {
+                    location.reload();
+                } else if (NO.includes(ans)) {
+                    gamePhase = "finale_done";
+                    userInput.disabled = true;
+                    userInput.blur();
+                    document.body.classList.remove("finale-retry");
+                    const m = document.createElement("div");
+                    m.className = "message final-line";
+                    terminalWindow.appendChild(m);
+                    await typeInto(m, t.finaleStay, 46);
+                    m.classList.add("done");
+                }
+                return;
+            }
 
             if (gamePhase === "select_lang") {
                 if (inputValUpper === 'A') gameState.language = 'en';
