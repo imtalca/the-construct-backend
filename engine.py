@@ -20,6 +20,26 @@ def _norm(s: str) -> str:
     return re.sub(r"[-_]+", " ", (s or "").strip().lower())
 
 
+_DISCARD_VERBS = re.compile(
+    r"\b("
+    # English
+    r"drop|drops|dropped|discard|discards|throw|throws|threw|thrown|toss|tosses|give|gives|gave|giving|"
+    r"hand|hands|handed|handing|abandon|abandons|ditch|ditches|leave behind|get rid|drop off|"
+    # French
+    r"donne|donnes|donner|donné|donnée|lâche|lâcher|lâché|jette|jeter|jeté|"
+    r"abandonne|abandonner|remets|remettre|tends|tendre|offre|offrir|dépose|déposer|laisse tomber|"
+    # German
+    r"gebe|geben|gibt|gab|abgeben|abgibt|hergeben|weggeben|wegwerfen|werfe|werfen|wirft|warf|"
+    r"übergebe|übergeben|reiche|reichen|überreiche|lasse .{0,25} zurück|"
+    # Russian
+    r"отдаю|отдать|отдал|отдала|отдаёт|отдает|даю|дать|бросаю|бросить|бросил|бросила|"
+    r"выбрасываю|выбросить|выкидываю|выкинуть|роняю|уронить|уронил|"
+    r"передаю|передать|передал|оставляю|оставить|избавляюсь|избавиться"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
 def _match_item(name: str, inventory: list[str]) -> str:
     """Fuzzily resolve an item name the LLM produced to the exact inventory entry.
     Returns the canonical inventory string, or '' if nothing plausibly matches."""
@@ -179,10 +199,10 @@ def game_master_node(state: EngineState):
     if dropped:
         updated_inventory.remove(dropped)
 
-    # Safety net: the LLM often forgets to flag "hand X to the guard" / "drop X".
-    # If the player's own words carry a discard verb, honour it against a named item.
+    # Safety net (all 4 languages): the LLM often forgets to flag "hand X to the guard" / "drop X".
+    # If the player's own words carry a discard verb, honour it against a named carried item.
     last_user = next((h.lower() for h in reversed(state["narrative_history"]) if "user:" in h.lower()), "")
-    if re.search(r"\b(drop|drops|dropp|discard|throw|threw|thrown|toss|give|gave|gives|giving|hand|hands|handed|abandon|ditch|get rid|leave behind)\b", last_user):
+    if _DISCARD_VERBS.search(last_user):
         for it in list(updated_inventory):
             toks = [x for x in _norm(it).split() if len(x) > 3]
             if _norm(it) in last_user or (toks and all(x in last_user for x in toks)):

@@ -203,42 +203,31 @@
             }
         }
 
-        /* ---- Finale mode: bare black screen, white Courier, terminal feel ---- */
-        body.finale-mode {
-            background-color: #000;
-            background-image:
-                linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
-                url('assets/bg-finale.webp');
-            background-size: cover;
-            background-position: center;
-        }
+        /* ---- Finale: a smaller centered terminal window, same look as the game, no HUD ---- */
         body.finale-mode .sidebar,
         body.finale-mode .terminal-header,
         body.finale-mode .input-form {
             display: none;
         }
         body.finale-mode .layout-wrapper {
-            max-width: 900px;
-            height: 100vh;
+            max-width: 600px;
+            height: 64vh;
         }
         body.finale-mode .terminal-container {
-            background: transparent;
-            border: none;
-            box-shadow: none;
             justify-content: flex-start;
-            animation: finaleFade 1.2s ease both;
+            animation: finaleFade 1.4s ease both;
         }
         body.finale-mode .terminal-window {
             overflow-y: auto;
             justify-content: flex-start;
-            gap: 14px;
+            gap: 12px;
         }
         body.finale-mode.finale-end .terminal-window {
             justify-content: center;
         }
         body.finale-mode .message {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 1rem;
+            font-size: 0.8rem;
             line-height: 1.7;
             color: #ffffff;
             text-shadow: none;
@@ -246,15 +235,15 @@
         }
         body.finale-mode .finale-hint {
             color: #4a7a4a;
-            font-size: 0.85rem;
+            font-size: 0.72rem;
             letter-spacing: 2px;
             margin-top: 6px;
             animation: caretBlink 1.2s step-end infinite;
         }
         body.finale-mode .finale-head {
             color: #3f7a3f;
-            font-size: 0.78rem;
-            letter-spacing: 4px;
+            font-size: 0.66rem;
+            letter-spacing: 3px;
             border-bottom: 1px solid #234023;
             padding-bottom: 8px;
             margin-bottom: 4px;
@@ -262,32 +251,32 @@
         body.finale-mode .finale-readout {
             border-top: 1px solid #234023;
             border-bottom: 1px solid #234023;
-            padding: 12px 0;
+            padding: 10px 0;
             margin: 4px 0;
-            max-width: 44em;
-            font-size: 0.9rem;
+            max-width: 100%;
+            font-size: 0.78rem;
         }
         body.finale-mode .ro-title {
             color: #3f7a3f;
-            font-size: 0.72rem;
-            letter-spacing: 4px;
+            font-size: 0.62rem;
+            letter-spacing: 3px;
             margin-bottom: 10px;
         }
         body.finale-mode .ro-row {
             display: flex;
-            gap: 18px;
-            line-height: 2;
+            gap: 14px;
+            line-height: 1.95;
         }
         body.finale-mode .ro-k {
             color: #5f9f5f;
-            min-width: 12em;
+            min-width: 9.5em;
             flex-shrink: 0;
         }
         body.finale-mode .ro-v { color: #ffffff; }
         body.finale-mode .final-line {
             color: #ffffff;
             font-style: normal;
-            font-size: 0.9rem;
+            font-size: 0.78rem;
             text-align: center;
             letter-spacing: 1px;
             animation: finaleFade 1.1s ease both;
@@ -296,13 +285,9 @@
             content: "_";
             animation: caretBlink 1.1s step-end infinite;
         }
-        
-        .terminal-container { background-color: rgba(8, 8, 8, 0.55); } 
-        body.finale-mode .terminal-container { background: transparent; }
-        
-        @keyframes finaleDrift {
-            to { background-position: 30px 24px, 41px 12px; }
-        }
+
+        .terminal-container { background-color: rgba(8, 8, 8, 0.6); }
+
         @keyframes finaleFade {
             from { opacity: 0; }
             to   { opacity: 1; }
