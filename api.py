@@ -36,7 +36,7 @@ ALLOWED_ORIGINS = [
     o.strip()
     for o in os.getenv(
         "ALLOWED_ORIGINS",
-        "https://construct.talcamusic.com,http://localhost:5500,http://127.0.0.1:5500",
+        "https://construct.talcamusic.com,http://localhost:5500,http://127.0.0.1:5500", "file:///C:/Users/Admin/Desktop/the-construct/index.html",
     ).split(",")
     if o.strip()
 ]
