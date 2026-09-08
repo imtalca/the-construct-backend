@@ -202,7 +202,7 @@
             }
         }
 
-        /* ---- Finale mode: same terminal, no HUD, white Courier on black ---- */
+        /* ---- Finale mode: bare black screen, white Courier, terminal feel ---- */
         body.finale-mode {
             background: #000;
         }
@@ -217,13 +217,18 @@
         }
         body.finale-mode .terminal-container {
             background: #000;
-            justify-content: center;
-            animation: finaleFade 1.4s ease both;
+            border: none;
+            box-shadow: none;
+            justify-content: flex-start;
+            animation: finaleFade 1.2s ease both;
         }
         body.finale-mode .terminal-window {
             overflow-y: auto;
+            justify-content: flex-start;
+            gap: 14px;
+        }
+        body.finale-mode.finale-end .terminal-window {
             justify-content: center;
-            gap: 24px;
         }
         body.finale-mode .message {
             font-family: 'Courier New', Courier, monospace;
@@ -233,9 +238,16 @@
             text-shadow: none;
             white-space: pre-wrap;
         }
+        body.finale-mode .finale-hint {
+            color: #4a7a4a;
+            font-size: 0.85rem;
+            animation: caretBlink 1.2s step-end infinite;
+        }
         body.finale-mode .final-line {
             color: #ffffff;
             font-style: normal;
+            font-size: 0.9rem;
+            text-align: center;
         }
         body.finale-mode .final-line.done::after {
             content: "_";
@@ -604,8 +616,6 @@
             });
         }
 
-        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
         function typeInto(element, text, speed) {
             return new Promise((resolve) => {
                 let i = 0;
@@ -623,6 +633,21 @@
 
         const FINAL_LINE = "Only you hold the key to what lies beyond the Construct";
 
+        function waitForEnter() {
+            return new Promise((resolve) => {
+                function done() {
+                    window.removeEventListener("keydown", onKey);
+                    terminalWindow.removeEventListener("click", done);
+                    resolve();
+                }
+                function onKey(e) {
+                    if (e.key === "Enter") { e.preventDefault(); done(); }
+                }
+                window.addEventListener("keydown", onKey);
+                terminalWindow.addEventListener("click", done);
+            });
+        }
+
         async function renderFinale(finaleText) {
             document.body.classList.add("finale-mode");
             userInput.disabled = true;
@@ -635,21 +660,20 @@
             terminalWindow.appendChild(body);
             await typeInto(body, finaleText.trim(), 16);
 
-            await sleep(1400);
+            const hint = document.createElement("div");
+            hint.className = "message finale-hint";
+            terminalWindow.appendChild(hint);
+            await typeInto(hint, "[ PRESS ENTER ]", 28);
 
-            const line1 = document.createElement("div");
-            line1.className = "message final-line";
-            terminalWindow.appendChild(line1);
-            await typeInto(line1, FINAL_LINE, 34);
+            await waitForEnter();
 
-            await sleep(5000);
-
+            document.body.classList.add("finale-end");
             terminalWindow.innerHTML = "";
-            const line2 = document.createElement("div");
-            line2.className = "message final-line";
-            terminalWindow.appendChild(line2);
-            await typeInto(line2, FINAL_LINE, 70);
-            line2.classList.add("done");
+            const last = document.createElement("div");
+            last.className = "message final-line";
+            terminalWindow.appendChild(last);
+            await typeInto(last, FINAL_LINE, 55);
+            last.classList.add("done");
         }
 
         function typeQuestion(text, callback) {

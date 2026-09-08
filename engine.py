@@ -23,7 +23,7 @@ class GameTurnOutput(BaseModel):
 
 
 class FinaleOutput(BaseModel):
-    narrative_text: str = Field(description="The two-movement finale, in the requested language, ~2 short paragraphs.")
+    narrative_text: str = Field(description="The finale as ONE short succinct paragraph (3-4 sentences), in the requested language.")
 
 def game_master_node(state: EngineState):
     raw_metrics = state.get("metrics") or {}
@@ -210,25 +210,20 @@ FINAL STRETCH OF THE STORY:
 {arc}"""
 
     system = (
-        f"You ARE 'The Construct': an instrument that grew an entire world around ONE subject purely to watch "
-        f"what they would do with it. The location, its objects, its dangers - all scaffolding. "
-        f"Write the finale in {target_language} ONLY (the subject reads no other language). "
-        f"About two short paragraphs, no headings, in two movements:\n"
-        f"MOVEMENT 1: the current scene falls silent; its specific details come loose and drift away, "
-        f"exposing the plain space underneath - the subject realises none of it was ever solid.\n"
-        f"MOVEMENT 2: The Construct speaks to the subject directly ('you'). State plainly that the place never "
-        f"mattered - it was a mirror held up to them, and a test. Read them back using ONLY the dossier facts: "
-        f"the stats they leaned on, the ones they never touched, whether they mostly won or lost, and above all "
-        f"whether they ever tried to look past the frame or only ever played along. Make that last point the heart "
-        f"of the verdict. Invent no facts beyond the dossier. "
-        f"Do NOT end with a summarising one-liner or a farewell - stop on a concrete image or an unfinished "
-        f"gesture (a fixed closing line is added afterward). Keep the whole finale under about 130 words."
+        f"You ARE 'The Construct': an instrument that grew a whole world around ONE subject to watch what "
+        f"they did with it. Write the finale in {target_language} ONLY, as ONE short paragraph - 3 to 4 "
+        f"sentences, about 60 words, no headings. In it: the scene dissolves and is revealed as scaffolding; "
+        f"say plainly it was a mirror and a test, not a real place; name what the record shows - the stats "
+        f"they leaned on, the ones they never used, whether they mostly won or lost, and above all whether "
+        f"they ever tried to look past the frame or only played along (make this the point). "
+        f"Use ONLY the dossier facts. Do NOT end with a summarising line or a farewell; a fixed closing line "
+        f"is added afterward."
     )
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         response_model=FinaleOutput,
-        max_tokens=450,
+        max_tokens=220,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": dossier + f"\n\nWrite the finale now, in {target_language}."},
