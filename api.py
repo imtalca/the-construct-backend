@@ -30,10 +30,14 @@ app = FastAPI(title="The Construct API", version="1.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Comma-separated list; override on the server to add previews / local dev origins.
+# One comma-separated string. Override with the ALLOWED_ORIGINS env var to add
+# preview URLs. Local dev needs a static server (Live Server etc.), not file://.
 ALLOWED_ORIGINS = [
     o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", "https://construct.talcamusic.com", "file:///C:/Users/Admin/Desktop/the-construct/index.html)").split(",")
+    for o in os.getenv(
+        "ALLOWED_ORIGINS",
+        "https://construct.talcamusic.com,http://localhost:5500,http://127.0.0.1:5500",
+    ).split(",")
     if o.strip()
 ]
 
