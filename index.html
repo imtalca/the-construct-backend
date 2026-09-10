@@ -1310,8 +1310,23 @@
                 terminalWindow.appendChild(userDiv);
                 scrollToBottom();
 
-                gameState.narrative_history.push(`\nUSER: ${actionText}\n`);
-                
+                // The server appends this turn's "USER: ..." line itself (api.py), so we
+                // must NOT push it here - doing so double-counts on success and, when a
+                // turn fails and the player retries, stacks a new line every attempt.
+
+                // Never re-upload a previous turn's scene image. It's a ~1-2 MB base64
+                // data: URI; on the success path it's cleared after rendering, but a
+                // failed turn used to leave it in state, so every retry re-sent it and
+                // got slower until it always timed out.
+                gameState.latest_image_url = null;
+
+                // Bound the history we send. The engine only ever reads the opening scene
+                // (kept separately as current_scenario) and the last few entries, so an
+                // unbounded transcript just inflates every request body.
+                if (Array.isArray(gameState.narrative_history) && gameState.narrative_history.length > 24) {
+                    gameState.narrative_history = gameState.narrative_history.slice(-24);
+                }
+
                 const loadingIndicator = document.createElement("div");
                 loadingIndicator.className = "message system";
                 loadingIndicator.style.fontStyle = "italic";
@@ -1319,6 +1334,13 @@
                 terminalWindow.appendChild(loadingIndicator);
                 scrollToBottom();
 
+                // Give up on the socket ourselves after 90s. A turn runs an LLM call
+                // plus image generation; if it outlives the hosting proxy's timeout the
+                // browser only ever reports a bare "Failed to fetch" after a long hang.
+                // We do NOT auto-retry: /api/turn advances game state, so a retry after a
+                // proxy timeout could double-apply the turn.
+                const ctrl = new AbortController();
+                const turnTimer = setTimeout(() => ctrl.abort(), 90000);
                 try {
                     const response = await fetch(`${API_BASE}/api/turn`, {
                         method: "POST",
@@ -1326,8 +1348,10 @@
                         body: JSON.stringify({
                             user_action: actionText,
                             current_state: gameState
-                        })
+                        }),
+                        signal: ctrl.signal
                     });
+                    clearTimeout(turnTimer);
 
                     if (response.status === 401) {
                         clearKey();
@@ -1387,9 +1411,20 @@
                     });
 
                 } catch (error) {
+                    clearTimeout(turnTimer);
                     console.error("Transmission error:", error);
                     if (loadingIndicator.parentNode) terminalWindow.removeChild(loadingIndicator);
-                    addMessage(error.message || t.lostConnection, "system");
+                    // AbortError (our own timeout) and TypeError "Failed to fetch" (the
+                    // connection never returned a response) both mean the turn didn't
+                    // land - the game state is untouched, so the player can just retype.
+                    const dropped = error.name === "AbortError" ||
+                        (error instanceof TypeError) ||
+                        /failed to fetch/i.test(error.message || "");
+                    addMessage(
+                        dropped ? (t.lostConnection || "SIGNAL LOST :: the construct did not answer in time. Try again.")
+                                : (error.message || t.lostConnection),
+                        "system"
+                    );
                     userInput.disabled = false;
                     userInput.focus();
                 }

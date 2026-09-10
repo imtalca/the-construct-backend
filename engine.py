@@ -9,8 +9,15 @@ from langgraph.graph import StateGraph, END
 from state import EngineState
 
 load_dotenv()
-base_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=45.0, max_retries=2)
+# Worst case per turn is (text timeout x (retries + 1)) + image timeout. Kept well
+# under a typical 100s hosting-proxy cap: if the turn outlives that cap the proxy
+# drops the socket and the browser only sees a bare "Failed to fetch".
+base_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=35.0, max_retries=1)
 client = instructor.from_openai(base_client)
+
+# Image generation is decorative - never let it hold a turn open. Short timeout, no
+# retries; on any failure the turn still returns with image_url = None.
+image_client = base_client.with_options(timeout=25.0, max_retries=0)
 
 # Set ENABLE_IMAGES=0 (env or .env) to skip image generation for faster testing.
 IMAGES_ENABLED = os.getenv("ENABLE_IMAGES", "1").strip().lower() not in ("0", "false", "no", "off")
@@ -149,7 +156,7 @@ def game_master_node(state: EngineState):
     else:
         try:
             print(f"[DEBUG] Generating image: {response.image_prompt}")
-            image_res = base_client.images.generate(
+            image_res = image_client.images.generate(
                 model="gpt-image-2",
                 prompt=response.image_prompt,
                 size="1024x1024",
