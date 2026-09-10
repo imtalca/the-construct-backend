@@ -1,4 +1,5 @@
 import os
+import logging
 import secrets
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Header, Depends
@@ -11,6 +12,12 @@ from slowapi.errors import RateLimitExceeded
 from engine import narrative_engine, client
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s | %(message)s",
+)
+log = logging.getLogger("construct")
 
 ACCESS_KEY = os.getenv("ACCESS_KEY", "")
 if not ACCESS_KEY:
@@ -63,6 +70,13 @@ def play_turn(request: Request, body: ActionRequest):  # sync -> runs in a worke
         game_state = body.current_state
         current_lang = game_state.get("language", "en")
         current_gender = game_state.get("player_gender", "Unspecified")
+        turn_no = game_state.get("turn_count", 1)
+
+        log.info(
+            "TURN ip=%s lang=%s gender=%s turn=%s action=%r",
+            get_remote_address(request), current_lang, current_gender,
+            turn_no, body.user_action,
+        )
 
         game_state.setdefault("narrative_history", [])
         game_state.setdefault("turn_log", [])
@@ -89,6 +103,11 @@ def generate_location(request: Request, body: dict):  # sync -> worker thread
         state = body.get("current_state", {})
         player_gender = state.get("player_gender", "Unspecified")
         player_lang = state.get("language", "en")
+
+        log.info(
+            "NEW GAME ip=%s lang=%s gender=%s",
+            get_remote_address(request), player_lang, player_gender,
+        )
 
         lang_mapping = {'en': 'English', 'fr': 'French', 'de': 'German', 'ru': 'Russian'}
         target_language = lang_mapping.get(player_lang, 'English')
