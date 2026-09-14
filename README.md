@@ -65,5 +65,5 @@ assets/      Background art, QR code, etc.
 
 ## Gameplay recording
 
-A full playthrough recording exists and will be linked here once uploaded
-(too large for a normal git push — pending a GitHub Release upload).
+A full playthrough is available in the
+[v1.0-gameplay release](https://github.com/imtalca/the-construct-backend/releases/tag/v1.0-gameplay).
