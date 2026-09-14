@@ -91,7 +91,7 @@ def game_master_node(state: EngineState):
 
     turn = state.get("turn_count", 1)
     max_turns = state.get("max_turns", 10)
-    current_difficulty = 3 + (turn // 2)
+    current_difficulty = 3 + min(5, (turn * 5) // max(max_turns, 1))
 
     player_gender = state.get("player_gender", "Unspecified")
     player_lang = state.get("language", "en")

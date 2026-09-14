@@ -503,6 +503,11 @@
                 bioSetupHeader: "BIOMETRIC SETUP",
                 diagnosticHeader: "PSYCHOMETRIC DIAGNOSTIC",
                 locGenHeader: "LOCATION GENERATION",
+                turnSetupHeader: "MISSION LENGTH",
+                turnCountPrompt: "CHOOSE THE NUMBER OF TURNS (max 10 turns):",
+                turnCountInvalid: "ERR: Enter a whole number between 1 and 10.",
+                turnCountSetMsg: "Turn limit set to {n}.",
+                placeholderTurnCount: "Enter a number (1-10)...",
                 none: "None",
                 loadingTurn: "[SYS:// DECRYPTING VISUAL & AUDIO LOGS...]",
                 locGenLoading: "> GENERATING LOCATION... (server may be waking up, up to ~50s)",
@@ -554,6 +559,11 @@
                 bioSetupHeader: "CONFIGURATION BIOMÉTRIQUE",
                 diagnosticHeader: "DIAGNOSTIC PSYCHOMÉTRIQUE",
                 locGenHeader: "GÉNÉRATION DE LIEU",
+                turnSetupHeader: "DURÉE DE LA MISSION",
+                turnCountPrompt: "CHOISISSEZ LE NOMBRE DE TOURS (10 maximum) :",
+                turnCountInvalid: "ERREUR : Entrez un nombre entier entre 1 et 10.",
+                turnCountSetMsg: "Limite de tours définie à {n}.",
+                placeholderTurnCount: "Entrez un nombre (1-10)...",
                 none: "Aucun",
                 loadingTurn: "[SYS:// DÉCRYPTAGE DES JOURNAUX VISUELS & AUDIO...]",
                 locGenLoading: "> GÉNÉRATION DU LIEU... (le serveur se réveille peut-être, jusqu'à ~50s)",
@@ -605,6 +615,11 @@
                 bioSetupHeader: "BIOMETRISCHE EINRICHTUNG",
                 diagnosticHeader: "PSYCHOMETRISCHE DIAGNOSTIK",
                 locGenHeader: "STANDORTGENERIERUNG",
+                turnSetupHeader: "MISSIONSDAUER",
+                turnCountPrompt: "WÄHLEN SIE DIE ANZAHL DER RUNDEN (max. 10 Runden):",
+                turnCountInvalid: "FEHLER: Geben Sie eine ganze Zahl zwischen 1 und 10 ein.",
+                turnCountSetMsg: "Rundenlimit auf {n} gesetzt.",
+                placeholderTurnCount: "Zahl eingeben (1-10)...",
                 none: "Keine",
                 loadingTurn: "[SYS:// ENTSCHLÜSSELE VISUELLE & AUDIO-LOGS...]",
                 locGenLoading: "> ORT WIRD GENERIERT... (Server startet evtl., bis zu ~50s)",
@@ -656,6 +671,11 @@
                 bioSetupHeader: "БИОМЕТРИЧЕСКАЯ НАСТРОЙКА",
                 diagnosticHeader: "ПСИХОМЕТРИЧЕСКАЯ ДИАГНОСТИКА",
                 locGenHeader: "ГЕНЕРАЦИЯ ЛОКАЦИИ",
+                turnSetupHeader: "ДЛИТЕЛЬНОСТЬ МИССИИ",
+                turnCountPrompt: "ВЫБЕРИТЕ КОЛИЧЕСТВО ХОДОВ (максимум 10):",
+                turnCountInvalid: "ОШИБКА: Введите целое число от 1 до 10.",
+                turnCountSetMsg: "Лимит ходов установлен: {n}.",
+                placeholderTurnCount: "Введите число (1-10)...",
                 none: "Нет",
                 loadingTurn: "[SYS:// РАСШИФРОВКА ВИЗУАЛЬНЫХ И АУДИО-ЛОГОВ...]",
                 locGenLoading: "> ГЕНЕРАЦИЯ ЛОКАЦИИ... (сервер может просыпаться, до ~50с)",
@@ -1015,7 +1035,7 @@
             userInput.focus();
         }
 
-        function typeQuestion(text, callback) {
+        function typeQuestion(text, callback, placeholder) {
             userInput.disabled = true;
             const t = translations[gameState.language] || translations.en;
             const div = document.createElement("div");
@@ -1025,7 +1045,7 @@
 
             typeWriterEffect(text, div, () => {
                 userInput.disabled = false;
-                userInput.placeholder = t.placeholderChoice;
+                userInput.placeholder = placeholder || t.placeholderChoice;
                 userInput.focus();
                 if (callback) callback();
             });
@@ -1191,6 +1211,25 @@
 
                 addMessage(`> ${setMsg}`, "user");
                 userInput.value = "";
+
+                gamePhase = "turn_select";
+                turnIndicator.textContent = t.turnSetupHeader;
+                typeQuestion(t.turnCountPrompt, null, t.placeholderTurnCount);
+                return;
+            }
+
+            if (gamePhase === "turn_select") {
+                const n = parseInt(inputVal, 10);
+                if (!Number.isInteger(n) || String(n) !== inputVal.trim() || n < 1 || n > 10) {
+                    addMessage(t.turnCountInvalid, "system");
+                    userInput.value = "";
+                    return;
+                }
+
+                gameState.max_turns = n;
+                addMessage(`> ${t.turnCountSetMsg.replace("{n}", n)}`, "user");
+                userInput.value = "";
+                updateHUD();
 
                 gamePhase = "profiler";
                 turnIndicator.textContent = t.diagnosticHeader;

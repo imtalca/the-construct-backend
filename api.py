@@ -141,12 +141,13 @@ def generate_location(request: Request, body: dict):  # sync -> worker thread
         state = body.get("current_state", {})
         player_gender = state.get("player_gender", "Unspecified")
         player_lang = state.get("language", "en")
+        max_turns = state.get("max_turns")
 
         log.info(
-            "NEW GAME ip=%s lang=%s gender=%s",
-            get_remote_address(request), player_lang, player_gender,
+            "NEW GAME ip=%s lang=%s gender=%s max_turns=%s",
+            get_remote_address(request), player_lang, player_gender, max_turns,
         )
-        _record("new_game", request, lang=player_lang, gender=player_gender)
+        _record("new_game", request, lang=player_lang, gender=player_gender, max_turns=max_turns)
 
         lang_mapping = {'en': 'English', 'fr': 'French', 'de': 'German', 'ru': 'Russian'}
         target_language = lang_mapping.get(player_lang, 'English')
@@ -236,7 +237,7 @@ _ADMIN_HTML = """<!doctype html>
           <td>${esc(e.lang || "")}</td>
           <td>${esc(e.gender || "")}</td>
           <td>${e.kind === "new_game" ? "NEW" : esc(e.turn ?? "")}</td>
-          <td class="action">${e.kind === "new_game" ? "(started a new game)" : esc(e.action || "")}</td>
+          <td class="action">${e.kind === "new_game" ? `(started a new game, max_turns=${esc(e.max_turns ?? "?")})` : esc(e.action || "")}</td>
         </tr>`).join("");
       meta.textContent = `${data.count} entries buffered - refreshed ${new Date().toLocaleTimeString()}`;
     } catch (e) {
