@@ -5,6 +5,8 @@ reality with no memory of how you got there — every choice you type is
 evaluated live by an LLM narrative engine that reacts, escalates difficulty,
 and eventually decides how (or whether) you get out.
 
+![The Construct terminal UI](assets/screenshot.png)
+
 **Play it live: [construct.talcamusic.com](https://construct.talcamusic.com/)**
 
 > Access is gated by a key — reach out if you'd like one to try it.
